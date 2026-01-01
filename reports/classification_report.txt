@@ -1,0 +1,10 @@
+Classification Report - Random Forest
+======================================================================
+              precision    recall  f1-score   support
+
+         Ham     0.9837    0.9979    0.9908       966
+        Spam     0.9852    0.8926    0.9366       149
+
+    accuracy                         0.9839      1115
+   macro avg     0.9844    0.9453    0.9637      1115
+weighted avg     0.9839    0.9839    0.9835      1115
