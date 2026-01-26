@@ -26,20 +26,20 @@ class SMSPredictor:
         try:
             # Load model
             self.model = joblib.load(SMS_MODEL_PATH)
-            print(f"✓ Model loaded from: {SMS_MODEL_PATH}")
+            print(f"[OK] Model loaded from: {SMS_MODEL_PATH}")
             
             # Load feature extractor
             self.feature_extractor = joblib.load(FEATURE_EXTRACTOR_PATH)
-            print(f"✓ Feature extractor loaded")
+            print(f"[OK] Feature extractor loaded")
             
             # Initialize preprocessor
             self.preprocessor = SMSPreprocessor(use_stemming=True)
-            print(f"✓ Preprocessor initialized")
+            print(f"[OK] Preprocessor initialized")
             
-            print("✓ SMS Phishing Detector ready!\n")
+            print("[OK] SMS Phishing Detector ready!\n")
             
         except FileNotFoundError as e:
-            print(f"✗ Error: Could not load model files")
+            print(f"[ERROR] Could not load model files")
             print(f"  Make sure you've run: python src/sms_detection/train_model.py")
             raise e
     
@@ -133,27 +133,27 @@ class SMSPredictor:
         print("\n" + "="*70)
         
         if result['prediction'] == 'spam':
-            print("⚠️  PHISHING/SPAM DETECTED")
+            print("[WARNING] PHISHING/SPAM DETECTED")
             color = '\033[91m'  # Red
         else:
-            print("✓ LEGITIMATE MESSAGE")
+            print("[OK] LEGITIMATE MESSAGE")
             color = '\033[92m'  # Green
         
         print("="*70)
         
-        print(f"\n📱 Message: {result['message'][:100]}...")
+        print(f"\nMessage: {result['message'][:100]}...")
         print(f"\n{color}Prediction: {result['prediction'].upper()}\033[0m")
         print(f"Confidence: {result['confidence']:.1%}")
         print(f"Threat Score: {result['threat_score']}/100")
         
-        print(f"\n🔍 Key Indicators:")
+        print(f"\nKey Indicators:")
         features = result['features']
-        print(f"  • Urgency keywords: {features['urgency_keywords']}")
-        print(f"  • Financial keywords: {features['financial_keywords']}")
-        print(f"  • Action keywords: {features['action_keywords']}")
-        print(f"  • Contains URL: {'Yes' if features['has_url'] else 'No'}")
-        print(f"  • Contains phone: {'Yes' if features['has_phone'] else 'No'}")
-        print(f"  • Excessive CAPS: {'Yes' if features['excessive_caps'] else 'No'}")
+        print(f"  - Urgency keywords: {features['urgency_keywords']}")
+        print(f"  - Financial keywords: {features['financial_keywords']}")
+        print(f"  - Action keywords: {features['action_keywords']}")
+        print(f"  - Contains URL: {'Yes' if features['has_url'] else 'No'}")
+        print(f"  - Contains phone: {'Yes' if features['has_phone'] else 'No'}")
+        print(f"  - Excessive CAPS: {'Yes' if features['excessive_caps'] else 'No'}")
         
         print("="*70)
 
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     try:
         predictor = SMSPredictor()
     except FileNotFoundError:
-        print("\n✗ Please train the model first:")
+        print("\n[ERROR] Please train the model first:")
         print("  python src/sms_detection/train_model.py")
         sys.exit(1)
     
@@ -202,10 +202,10 @@ if __name__ == "__main__":
     print("="*70)
     
     while True:
-        message = input("\n📱 Enter message: ").strip()
+        message = input("\nEnter message: ").strip()
         
         if message.lower() in ['quit', 'exit', 'q']:
-            print("\n✓ Goodbye!")
+            print("\n[OK] Goodbye!")
             break
         
         if not message:

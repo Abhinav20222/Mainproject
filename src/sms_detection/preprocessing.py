@@ -44,10 +44,10 @@ class SMSPreprocessor:
         self.use_stemming = use_stemming
         if use_stemming:
             self.stemmer = PorterStemmer()
-            print("✓ Using Porter Stemmer")
+            print("[OK] Using Porter Stemmer")
         else:
             self.lemmatizer = WordNetLemmatizer()
-            print("✓ Using WordNet Lemmatizer")
+            print("[OK] Using WordNet Lemmatizer")
         
         # Compile regex patterns (faster than re-compiling each time)
         self.url_pattern = re.compile(r'http\S+|www\.\S+|https\S+|\S+\.com|\S+\.org|\S+\.net')
@@ -56,7 +56,7 @@ class SMSPreprocessor:
         self.number_pattern = re.compile(r'\d+')
         self.special_char_pattern = re.compile(r'[^a-zA-Z\s]')
         
-        print("✓ Preprocessor initialized successfully\n")
+        print("[OK] Preprocessor initialized successfully\n")
     
     def clean_text(self, text):
         """
@@ -272,7 +272,7 @@ class SMSPreprocessor:
             df_processed['label_encoded'] = df_processed[label_column].map({'ham': 0, 'spam': 1})
         
         if verbose:
-            print(f"\n✓ Preprocessing complete!")
+            print(f"\n[OK] Preprocessing complete!")
             print(f"Output shape: {df_processed.shape}")
             print(f"New columns added: {df_processed.shape[1] - df.shape[1]}")
             print(f"\nFeature columns: {list(feature_df.columns)}")
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     # Load data
     print("\nLoading dataset...")
     df = pd.read_csv(SMS_RAW_DATA)
-    print(f"✓ Loaded {len(df)} messages")
+    print(f"[OK] Loaded {len(df)} messages")
     
     # Initialize preprocessor
     preprocessor = SMSPreprocessor(use_stemming=True)
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     # Save
     print(f"\nSaving to: {SMS_PROCESSED_DATA}")
     df_processed.to_csv(SMS_PROCESSED_DATA, index=False)
-    print("✓ Saved successfully!")
+    print("[OK] Saved successfully!")
     
     # Display sample
     print("\n" + "-"*60)
@@ -342,4 +342,4 @@ if __name__ == "__main__":
     print("-"*60)
     print(df_processed[preprocessor.get_feature_names()].describe())
     
-    print("\n✓ Preprocessing test complete!")
+    print("\n[OK] Preprocessing test complete!")

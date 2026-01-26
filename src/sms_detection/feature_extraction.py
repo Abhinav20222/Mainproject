@@ -47,7 +47,7 @@ class FeatureExtractor:
         self.feature_names = None
         self.numerical_features = None
         
-        print(f"✓ TF-IDF Vectorizer configured:")
+        print(f"[OK] TF-IDF Vectorizer configured:")
         print(f"  - Max features: {max_features}")
         print(f"  - N-gram range: {ngram_range}")
         print(f"  - Min DF: {MIN_DF}")
@@ -68,7 +68,7 @@ class FeatureExtractor:
         print("\n1. Extracting TF-IDF features...")
         # Use the sanitized text_data instead of df[text_column] directly
         tfidf_features = self.tfidf.fit_transform(text_data)
-        print(f"   ✓ Shape: {tfidf_features.shape}")
+        print(f"   [OK] Shape: {tfidf_features.shape}")
         
         # Convert to DataFrame
         tfidf_df = pd.DataFrame(
@@ -93,7 +93,7 @@ class FeatureExtractor:
         missing_features = [f for f in self.numerical_features if f not in df.columns]
         
         if missing_features:
-            print(f"   ⚠ Warning: Missing features: {missing_features}")
+            print(f"   [WARN] Missing features: {missing_features}")
         
         numerical_data = df[available_features].values
         numerical_scaled = self.scaler.fit_transform(numerical_data)
@@ -102,7 +102,7 @@ class FeatureExtractor:
             numerical_scaled,
             columns=[f'num_{col}' for col in available_features]
         )
-        print(f"   ✓ Shape: {numerical_df.shape}")
+        print(f"   [OK] Shape: {numerical_df.shape}")
         
         # 3. Combine features
         print("\n3. Combining features...")
@@ -110,8 +110,8 @@ class FeatureExtractor:
         
         self.feature_names = list(features_df.columns)
         
-        print(f"   ✓ Final feature matrix shape: {features_df.shape}")
-        print(f"   ✓ Total features: {len(self.feature_names)}")
+        print(f"   [OK] Final feature matrix shape: {features_df.shape}")
+        print(f"   [OK] Total features: {len(self.feature_names)}")
         
         return features_df
     
@@ -146,7 +146,7 @@ class FeatureExtractor:
         # 3. Combine
         features_df = pd.concat([tfidf_df, numerical_df], axis=1)
         
-        print(f"✓ Transformed shape: {features_df.shape}")
+        print(f"[OK] Transformed shape: {features_df.shape}")
         
         return features_df
     
@@ -207,13 +207,13 @@ class FeatureExtractor:
     def save(self, filepath=FEATURE_EXTRACTOR_PATH):
         """Save feature extractor"""
         joblib.dump(self, filepath)
-        print(f"\n✓ Feature extractor saved to: {filepath}")
+        print(f"\n[OK] Feature extractor saved to: {filepath}")
     
     @staticmethod
     def load(filepath=FEATURE_EXTRACTOR_PATH):
         """Load feature extractor"""
         extractor = joblib.load(filepath)
-        print(f"✓ Feature extractor loaded from: {filepath}")
+        print(f"[OK] Feature extractor loaded from: {filepath}")
         return extractor
 
 
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     # Load preprocessed data
     print("\nLoading preprocessed data...")
     df = pd.read_csv(SMS_PROCESSED_DATA)
-    print(f"✓ Loaded {len(df)} messages")
+    print(f"[OK] Loaded {len(df)} messages")
     print(f"Columns: {list(df.columns)}")
     
     # Initialize extractor
@@ -266,7 +266,7 @@ if __name__ == "__main__":
     print("SAVING FEATURES")
     print("-"*60)
     features_df.to_csv(SMS_FEATURES_DATA, index=False)
-    print(f"✓ Features saved to: {SMS_FEATURES_DATA}")
+    print(f"[OK] Features saved to: {SMS_FEATURES_DATA}")
     
     # Save extractor
     extractor.save()
@@ -276,6 +276,6 @@ if __name__ == "__main__":
     print("TESTING LOAD")
     print("-"*60)
     loaded_extractor = FeatureExtractor.load()
-    print("✓ Successfully loaded feature extractor!")
+    print("[OK] Successfully loaded feature extractor!")
     
-    print("\n✓ Feature extraction test complete!")
+    print("\n[OK] Feature extraction test complete!")

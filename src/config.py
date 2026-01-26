@@ -82,6 +82,6 @@ THREAT_COLORS = {
     'critical': '#dc3545'  # Red
 }
 
-print("✓ Configuration loaded successfully")
+print("[OK] Configuration loaded successfully")
 print(f"Project Root: {PROJECT_ROOT}")
 print(f"Data Directory: {DATA_DIR}")

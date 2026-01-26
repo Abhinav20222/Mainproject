@@ -13,13 +13,34 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from src.config import RAW_DATA_DIR, SMS_RAW_DATA, URL_RAW_DATA
 
-def download_sms_dataset():
-    """Download SMS Spam Collection dataset from UCI"""
+def download_sms_dataset(force_download=False, use_offline=True):
+    """Download SMS Spam Collection dataset from UCI
+    
+    Args:
+        force_download: If True, download even if data exists
+        use_offline: If True, use sample data instead of downloading
+    """
     
     print("="*60)
-    print("DOWNLOADING SMS SPAM DATASET")
+    print("SMS SPAM DATASET")
     print("="*60)
     
+    # Check if dataset already exists (caching)
+    if SMS_RAW_DATA.exists() and not force_download:
+        df = pd.read_csv(SMS_RAW_DATA)
+        print(f"\n✓ Dataset already exists! Using cached data.")
+        print(f"  Location: {SMS_RAW_DATA}")
+        print(f"  Total messages: {len(df)}")
+        return True
+    
+    # Use offline mode (sample data) - much faster
+    if use_offline:
+        print(f"\n→ Using OFFLINE mode (instant, no download required)")
+        create_sample_sms_dataset()
+        return True
+    
+    # Online mode - download from internet
+    print(f"\n→ Using ONLINE mode (downloading from internet)...")
     url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip"
     zip_path = RAW_DATA_DIR / "smsspamcollection.zip"
     
@@ -212,17 +233,37 @@ def create_url_dataset():
 
 def main():
     """Main function to download all datasets"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Download/create phishing detection datasets')
+    parser.add_argument('--online', action='store_true', 
+                        help='Download from internet instead of using sample data')
+    parser.add_argument('--force', action='store_true',
+                        help='Force re-download even if data exists')
+    args = parser.parse_args()
     
     print("\n" + "="*60)
     print("PHISHING DETECTION SYSTEM - DATA COLLECTION")
     print("="*60)
     
+    if args.online:
+        print("\n📡 Mode: ONLINE (downloading from internet)")
+    else:
+        print("\n⚡ Mode: OFFLINE (instant, using sample data)")
+    
     # Create directories
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     
     # Download datasets
-    download_sms_dataset()
+    download_sms_dataset(force_download=args.force, use_offline=not args.online)
     create_url_dataset()
+
+    # Also generate the comprehensive URL detection dataset
+    try:
+        from src.url_detection.download_url_data import main as download_url_main
+        download_url_main()
+    except Exception as e:
+        print(f"\n[WARN] URL detection dataset generation skipped: {e}")
     
     print("\n" + "="*60)
     print("DATA COLLECTION COMPLETE!")
@@ -230,6 +271,7 @@ def main():
     print(f"\nDatasets saved in: {RAW_DATA_DIR}")
     print(f"  1. SMS Dataset: {SMS_RAW_DATA}")
     print(f"  2. URL Dataset: {URL_RAW_DATA}")
+    print(f"  3. URL Detection Dataset: {RAW_DATA_DIR / 'phishing_urls.csv'}")
     print("\n✓ Ready for preprocessing!")
 
 if __name__ == "__main__":
