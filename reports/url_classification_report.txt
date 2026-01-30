@@ -2,9 +2,9 @@ Classification Report — Random Forest
 ============================================================
               precision    recall  f1-score   support
 
-  Legitimate     1.0000    1.0000    1.0000        80
-    Phishing     1.0000    1.0000    1.0000        96
+  Legitimate     0.9975    0.9850    0.9912       400
+    Phishing     0.9893    0.9982    0.9937       555
 
-    accuracy                         1.0000       176
-   macro avg     1.0000    1.0000    1.0000       176
-weighted avg     1.0000    1.0000    1.0000       176
+    accuracy                         0.9927       955
+   macro avg     0.9934    0.9916    0.9925       955
+weighted avg     0.9927    0.9927    0.9927       955
