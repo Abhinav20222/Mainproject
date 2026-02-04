@@ -1,36 +1,51 @@
-import { useState, useEffect } from "react";
-import { Shield, Zap, AlertTriangle, CheckCircle, Loader2, Link2, Phone, Type, TrendingUp, AlertCircle, ShieldAlert, ShieldCheck, Globe, Scan, Eye, X, Search, Lock, Unlock, Hash, AtSign } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Shield, Zap, AlertTriangle, Loader2, Link2, Type, TrendingUp,
+  AlertCircle, ShieldAlert, ShieldCheck, Globe, Scan, Eye, X, Search,
+  Lock, Unlock, Hash, AtSign, LayoutDashboard, MessageSquare,
+  Link as LinkIcon, History, Settings, Activity, Phone
+} from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+} from "recharts";
 import axios from "axios";
 
 const API_URL = "http://localhost:5000";
 
-// Sample messages for quick testing
+// Sample data
 const SAMPLE_MESSAGES = [
   { label: "Safe Message", text: "Hi! How are you? Want to grab lunch tomorrow?", type: "safe" },
   { label: "Bank Scam", text: "URGENT! Your bank account has been suspended. Click here to verify: bit.ly/xyz123", type: "phishing" },
   { label: "Prize Scam", text: "Congratulations! You've won $10,000! Call NOW at 1-800-555-1234 to claim your prize!", type: "phishing" },
 ];
-
 const SAMPLE_URLS = [
   { label: "Safe URL", url: "https://www.google.com", type: "safe" },
   { label: "IP Phishing", url: "http://192.168.1.1/sbi/login?user=admin", type: "phishing" },
   { label: "Brand Spoof", url: "http://paypal.secure-login.xyz/verify/account", type: "phishing" },
 ];
-
 const SAMPLE_FULLSCAN = [
   { label: "Safe Notice", text: "Institution wise Diploma spot admission for Govt/Aided Polytechnic Colleges shall be conducted from 16-11-2021 to 20-11-2021 to the vacant seats available in the institution. For more information please visit www.polyadmission.org", type: "safe" },
   { label: "Bank Phish", text: "URGENT! Your SBI account has been suspended due to unusual activity. Verify immediately to avoid permanent block: http://sbi.login-secure.xyz/verify/account?id=8472", type: "phishing" },
   { label: "Prize Scam", text: "Congratulations! You won a $5000 Amazon gift card! Claim NOW before it expires at http://amazon-prize.tk/claim?winner=true&code=WIN2024", type: "phishing" },
 ];
 
-// Tab modes
-const TABS = [
+const NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "sms", label: "SMS Scan", icon: MessageSquare },
+  { key: "url", label: "URL Scan", icon: LinkIcon },
+  { key: "fullscan", label: "Full Scan", icon: Scan },
+  { key: "history", label: "History", icon: History },
+  { key: "settings", label: "Settings", icon: Settings },
+];
+
+const SCAN_TABS = [
   { key: "sms", label: "SMS / Text", icon: Type },
   { key: "url", label: "URL Check", icon: Globe },
   { key: "fullscan", label: "Full Scan", icon: Scan },
 ];
 
 export default function App() {
+  const [activeNav, setActiveNav] = useState("dashboard");
   const [activeTab, setActiveTab] = useState("sms");
   const [message, setMessage] = useState("");
   const [url, setUrl] = useState("");
@@ -40,27 +55,62 @@ export default function App() {
   const [error, setError] = useState(null);
   const [apiOnline, setApiOnline] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [scanHistory, setScanHistory] = useState([]);
+  const [threatHistory, setThreatHistory] = useState([]);
 
-  // Check API health on mount
+  // Counters
+  const smsCount = scanHistory.filter(s => s.scanType === "sms").length;
+  const urlCount = scanHistory.filter(s => s.scanType === "url").length;
+  const fullCount = scanHistory.filter(s => s.scanType === "fullscan").length;
+  const totalScans = scanHistory.length;
+  const phishingCount = scanHistory.filter(s => s.isPhishing).length;
+  const safeCount = totalScans - phishingCount;
+  const safePercent = totalScans > 0 ? Math.round((safeCount / totalScans) * 100) : 100;
+  const threatPercent = totalScans > 0 ? Math.round((phishingCount / totalScans) * 100) : 0;
+
+  // Health check
   useEffect(() => {
-    const checkHealth = async () => {
+    const check = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/health`, { timeout: 2000 });
         setApiOnline(res.data.status === "online");
-      } catch {
-        setApiOnline(false);
-      }
+      } catch { setApiOnline(false); }
     };
-    checkHealth();
-    const interval = setInterval(checkHealth, 1000);
-    return () => clearInterval(interval);
+    check();
+    const iv = setInterval(check, 3000);
+    return () => clearInterval(iv);
   }, []);
 
-  // Clear results when switching tabs
   useEffect(() => {
     setResult(null);
     setError(null);
   }, [activeTab]);
+
+  const addToHistory = useCallback((scanType, input, score, isPhishing, riskLevel) => {
+    const entry = {
+      id: Date.now(),
+      scanType,
+      input: input.length > 50 ? input.slice(0, 50) + "…" : input,
+      score: Math.round(score > 1 ? score : score * 100),
+      isPhishing,
+      riskLevel: riskLevel || (isPhishing ? "High" : "Safe"),
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setScanHistory(prev => [entry, ...prev].slice(0, 20));
+    setThreatHistory(prev => {
+      const next = [...prev, {
+        name: `#${prev.length + 1}`,
+        threat: entry.score,
+        safe: 100 - entry.score,
+      }];
+      return next.slice(-15);
+    });
+  }, []);
+
+  const displayScore = (score) => {
+    if (score === undefined || score === null) return 0;
+    return score > 1 ? Math.round(score) : Math.round(score * 100);
+  };
 
   const analyzeMessage = async () => {
     if (!message.trim()) return;
@@ -68,6 +118,7 @@ export default function App() {
     try {
       const res = await axios.post(`${API_URL}/api/analyze`, { message });
       setResult({ type: "sms", data: res.data });
+      addToHistory("sms", message, res.data.threat_score, res.data.is_phishing);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to connect to API.");
     } finally { setLoading(false); }
@@ -79,6 +130,7 @@ export default function App() {
     try {
       const res = await axios.post(`${API_URL}/api/analyze-url`, { url });
       setResult({ type: "url", data: res.data });
+      addToHistory("url", url, res.data.threat_score, res.data.is_phishing, res.data.risk_level);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to analyze URL.");
     } finally { setLoading(false); }
@@ -89,10 +141,11 @@ export default function App() {
     setLoading(true); setError(null); setResult(null);
     try {
       const res = await axios.post(`${API_URL}/api/full-scan`, {
-        message: message,
-        include_visual: includeVisual,
+        message, include_visual: includeVisual,
       });
       setResult({ type: "fullscan", data: res.data });
+      addToHistory("fullscan", message, res.data.combined_threat_score,
+        res.data.combined_threat_score > 50, res.data.risk_level);
     } catch (err) {
       setError(err.response?.data?.error || "Full scan failed.");
     } finally { setLoading(false); }
@@ -110,196 +163,356 @@ export default function App() {
     setResult(null); setError(null);
   };
 
-  const getThreatColor = (score) => {
-    const s = score > 1 ? score : score * 100;
-    if (s < 30) return { bg: "from-green-500 to-emerald-400", text: "text-green-400", glow: "shadow-green-500/50", badge: "bg-green-500/20 text-green-400" };
-    if (s < 60) return { bg: "from-yellow-500 to-amber-400", text: "text-yellow-400", glow: "shadow-yellow-500/50", badge: "bg-yellow-500/20 text-yellow-400" };
-    if (s < 85) return { bg: "from-orange-500 to-red-400", text: "text-orange-400", glow: "shadow-orange-500/50", badge: "bg-orange-500/20 text-orange-400" };
-    return { bg: "from-red-600 to-rose-500", text: "text-red-400", glow: "shadow-red-500/50", badge: "bg-red-500/20 text-red-400" };
-  };
-
-  const getThreatIcon = (isPhishing) =>
-    isPhishing ? <ShieldAlert className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />;
-
   const canAnalyze = () => {
     if (!apiOnline) return false;
-    if (activeTab === "sms") return !!message.trim();
     if (activeTab === "url") return !!url.trim();
     return !!message.trim();
   };
 
-  // Normalize score to 0-100 for display
-  const displayScore = (score) => {
-    if (score === undefined || score === null) return 0;
-    return score > 1 ? Math.round(score) : Math.round(score * 100);
+  const getThreatColor = (score) => {
+    const s = score > 1 ? score : score * 100;
+    if (s < 30) return { gradient: "linear-gradient(90deg, #34d399, #10b981)", text: "var(--accent-green)" };
+    if (s < 60) return { gradient: "linear-gradient(90deg, #fbbf24, #f59e0b)", text: "var(--accent-amber)" };
+    if (s < 85) return { gradient: "linear-gradient(90deg, #fb923c, #f87171)", text: "var(--accent-red)" };
+    return { gradient: "linear-gradient(90deg, #f87171, #ef4444)", text: "var(--accent-red)" };
+  };
+
+  // Navigate to scan tab
+  const handleNavClick = (key) => {
+    setActiveNav(key);
+    if (key === "sms" || key === "url" || key === "fullscan") {
+      setActiveTab(key);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white px-4 py-8">
-      {/* Animated background grid */}
-      <div className="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAgTSAwIDIwIEwgNDAgMjAgTSAyMCAwIEwgMjAgNDAgTSAwIDMwIEwgNDAgMzAgTSAzMCAwIEwgMzAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxMDAsMjAwLDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50 pointer-events-none"></div>
-
-      <div className="relative z-10 max-w-4xl mx-auto space-y-8">
-
-        {/* Header */}
-        <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <Shield className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                PhishGuard AI
-              </h1>
-              <p className="text-sm text-gray-400">Multi-Channel Threat Detection • SMS • URL • Visual</p>
-            </div>
+    <div className="dashboard">
+      {/* ============ SIDEBAR ============ */}
+      <aside className="sidebar animate-slide-left">
+        <div className="sidebar-brand">
+          <div className="sidebar-brand-icon">
+            <Shield size={22} color="white" />
           </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${apiOnline ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-            <span className={`w-2 h-2 rounded-full ${apiOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
-            <span className="text-sm font-medium">{apiOnline ? 'AI Online' : 'AI Offline'}</span>
+          <h2>PhishGuard</h2>
+        </div>
+
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.key}
+                className={`nav-item ${activeNav === item.key ? "active" : ""}`}
+                onClick={() => handleNavClick(item.key)}>
+                <Icon size={18} />
+                <span>{item.label}</span>
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-status">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: apiOnline ? "var(--accent-green)" : "var(--accent-red)",
+              display: "inline-block",
+            }}
+              className={apiOnline ? "animate-pulse-online" : ""}
+            />
+            <span style={{ fontSize: 12, fontWeight: 600, color: apiOnline ? "var(--accent-green)" : "var(--accent-red)" }}>
+              {apiOnline ? "AI Engine Online" : "AI Offline"}
+            </span>
+          </div>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            ML Models • SMS + URL + Visual
+          </span>
+        </div>
+      </aside>
+
+      {/* ============ MAIN CONTENT ============ */}
+      <main className="main-content">
+        {/* Header */}
+        <div className="main-header animate-fade-in">
+          <div>
+            <h1>Threat Dashboard</h1>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+              Real-time phishing detection & analysis
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+            </span>
           </div>
         </div>
 
-        {/* Main Card */}
-        <div className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-3xl p-8 backdrop-blur-xl shadow-2xl">
+        {/* Stat Cards */}
+        <div className="stat-cards">
+          <StatCard label="SMS Scans" value={smsCount} badge={`${smsCount} total`} color="var(--accent-cyan)" delay="delay-1" />
+          <StatCard label="URL Scans" value={urlCount} badge={`${urlCount} total`} color="var(--accent-purple)" delay="delay-2" />
+          <StatCard label="Full Scans" value={fullCount} badge={`${fullCount} total`} color="var(--accent-pink)" delay="delay-3" />
+        </div>
 
-          {/* Tab Switcher */}
-          <div className="flex gap-2 mb-6 bg-black/30 rounded-2xl p-1.5">
-            {TABS.map((tab) => {
+        {/* Chart */}
+        <div className="chart-section animate-fade-in-up delay-3">
+          <div className="chart-header">
+            <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Activity size={16} color="var(--accent-purple)" /> Threat History
+            </h3>
+            <div className="chart-tabs">
+              <span className="chart-tab active">Recent</span>
+              <span className="chart-tab">All</span>
+            </div>
+          </div>
+          {threatHistory.length > 0 ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={threatHistory}>
+                <defs>
+                  <linearGradient id="colorThreat" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7c64ff" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#7c64ff" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorSafe" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3ecfff" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#3ecfff" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.15)" tick={{ fontSize: 11, fill: '#555d72' }} />
+                <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.08)" tick={{ fontSize: 11, fill: '#555d72' }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#1a2030", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 10, fontSize: 12, color: "#e8eaed"
+                  }}
+                />
+                <Area type="monotone" dataKey="threat" stroke="#7c64ff" strokeWidth={2.5}
+                  fill="url(#colorThreat)" name="Threat %" />
+                <Area type="monotone" dataKey="safe" stroke="#3ecfff" strokeWidth={1.5}
+                  fill="url(#colorSafe)" name="Safe %" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+              <Activity size={16} style={{ marginRight: 8, opacity: 0.5 }} /> Run scans to see threat trends
+            </div>
+          )}
+        </div>
+
+        {/* Scan Input Panel */}
+        <div className="input-panel animate-fade-in-up delay-4">
+          <div className="input-tabs">
+            {SCAN_TABS.map(tab => {
               const Icon = tab.icon;
               return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all
-                    ${activeTab === tab.key
-                      ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/10'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}>
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
+                <button key={tab.key}
+                  className={`input-tab ${activeTab === tab.key ? "active" : ""}`}
+                  onClick={() => setActiveTab(tab.key)}>
+                  <Icon size={15} /> {tab.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Input Section */}
-          <div className="space-y-4">
-            {activeTab === "sms" && (
-              <div>
-                <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                  <Type className="w-4 h-4 text-cyan-400" />
-                  Message Text
-                </label>
-                <textarea value={message} onChange={(e) => setMessage(e.target.value)}
-                  className="w-full h-32 bg-black/40 border border-white/20 rounded-2xl p-5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 resize-none transition-all"
-                  placeholder="Paste a suspicious SMS or email message..."
-                />
-              </div>
-            )}
+          {activeTab === "sms" && (
+            <textarea className="input-field" rows={4} value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="Paste a suspicious SMS or email message…" />
+          )}
+          {activeTab === "url" && (
+            <input type="text" className="input-field" value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="Enter a suspicious URL (e.g. http://suspicious-site.com/login)" />
+          )}
+          {activeTab === "fullscan" && (
+            <>
+              <textarea className="input-field" rows={5} value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder={"Paste the full message here — URLs auto-detected\n\nExample: URGENT! Your SBI account has been suspended. Verify at http://sbi.login-secure.xyz/verify"} />
+              <label className="checkbox-wrapper">
+                <input type="checkbox" checked={includeVisual} onChange={e => setIncludeVisual(e.target.checked)} />
+                <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                  <Eye size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
+                  Include Visual Spoofing Analysis (slower)
+                </span>
+              </label>
+            </>
+          )}
 
-            {activeTab === "url" && (
-              <div>
-                <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                  <Globe className="w-4 h-4 text-purple-400" />
-                  URL to Check
-                </label>
-                <input type="text" value={url} onChange={(e) => setUrl(e.target.value)}
-                  className="w-full bg-black/40 border border-white/20 rounded-2xl p-5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
-                  placeholder="Enter a suspicious URL (e.g. http://suspicious-site.com/login)"
-                />
-              </div>
-            )}
-
-            {activeTab === "fullscan" && (
-              <>
-                <div>
-                  <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                    <Scan className="w-4 h-4 text-purple-400" />
-                    Paste Full Message (text + URLs will be auto-detected)
-                  </label>
-                  <textarea value={message} onChange={(e) => setMessage(e.target.value)}
-                    className="w-full h-40 bg-black/40 border border-white/20 rounded-2xl p-5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 resize-none transition-all"
-                    placeholder="Paste the entire suspicious message here&#10;&#10;Example: URGENT! Your SBI account has been suspended. Verify at http://sbi.login-secure.xyz/verify"
-                  />
-                  <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                    <Search className="w-3 h-3" /> URLs will be automatically extracted and analyzed separately
-                  </p>
-                </div>
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" checked={includeVisual} onChange={(e) => setIncludeVisual(e.target.checked)}
-                    className="w-5 h-5 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-500/50" />
-                  <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                    <Eye className="w-4 h-4 inline mr-1" /> Include Visual Spoofing Analysis (slower, requires Chrome)
-                  </span>
-                </label>
-              </>
-            )}
-          </div>
-
-          {/* Analyze Button */}
-          <button onClick={handleAnalyze} disabled={loading || !canAnalyze()}
-            className="mt-6 w-full py-5 rounded-2xl bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 font-bold flex items-center justify-center gap-3 hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+          <button className="btn-scan" onClick={handleAnalyze} disabled={loading || !canAnalyze()}>
             {loading ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing...</>
+              <><Loader2 size={18} className="animate-spin" /> Analyzing…</>
             ) : (
-              <><Zap className="w-5 h-5" /> {activeTab === "fullscan" ? "Launch Full Scan" : "Initiate Threat Scan"}</>
+              <><Zap size={18} /> {activeTab === "fullscan" ? "Launch Full Scan" : "Initiate Threat Scan"}</>
             )}
           </button>
 
-          {/* Sample Items */}
-          <div className="mt-6">
-            <p className="text-sm text-gray-400 mb-3">Quick test samples:</p>
-            <div className="grid grid-cols-3 gap-3">
-              {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN).map((sample, idx) => (
-                <button key={idx} onClick={() => loadSample(sample)}
-                  className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all hover:scale-[1.02] ${sample.type === 'safe'
-                    ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
-                    : 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'}`}>
-                  {sample.label}
-                </button>
+          {/* Samples */}
+          <div className="samples-row">
+            {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN)
+              .map((s, i) => (
+                <button key={i} className={`sample-btn ${s.type === "safe" ? "safe" : "danger"}`}
+                  onClick={() => loadSample(s)}>{s.label}</button>
               ))}
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+            background: "var(--glow-red)", border: "1px solid rgba(248,113,113,0.2)",
+            borderRadius: "var(--radius-md)", fontSize: 13
+          }}>
+            <AlertCircle size={18} color="var(--accent-red)" />
+            <span style={{ color: "var(--accent-red)" }}>{error}</span>
+          </div>
+        )}
+
+        {/* Scan History Table */}
+        {scanHistory.length > 0 && (
+          <div className="scan-history animate-fade-in-up delay-5">
+            <div className="scan-history-header">
+              <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <History size={16} color="var(--accent-cyan)" /> Recent Scans
+              </h3>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {scanHistory.length} scans
+              </span>
+            </div>
+            <div className="scan-row scan-row-head">
+              <span>Time</span><span>Input</span><span>Type</span><span>Score</span><span>Status</span>
+            </div>
+            {scanHistory.slice(0, 8).map(s => (
+              <div key={s.id} className="scan-row">
+                <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.time}</span>
+                <span style={{ color: "var(--text-secondary)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
+                <span>
+                  <span className={`badge ${s.scanType === "sms" ? "badge-purple" : s.scanType === "url" ? "badge-warning" : "badge-safe"}`}>
+                    {s.scanType.toUpperCase()}
+                  </span>
+                </span>
+                <span style={{
+                  fontFamily: "'Outfit', sans-serif", fontWeight: 700,
+                  color: s.score < 30 ? "var(--accent-green)" : s.score < 60 ? "var(--accent-amber)" : "var(--accent-red)"
+                }}>
+                  {s.score}
+                </span>
+                <span>
+                  <span className={`badge ${s.isPhishing ? "badge-danger" : "badge-safe"}`}>
+                    {s.isPhishing ? "⚠ Phishing" : "✓ Safe"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* ============ RIGHT PANEL ============ */}
+      <aside className="right-panel">
+        {/* Overall Stats */}
+        <div style={{ textAlign: "center", paddingBottom: 14, borderBottom: "1px solid var(--border)" }}
+          className="animate-fade-in">
+          <p style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+            Total Scans
+          </p>
+          <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 42, fontWeight: 800, lineHeight: 1 }}
+            className="text-gradient">{totalScans}</p>
+        </div>
+
+        {/* Safety Donuts */}
+        <div className="right-section animate-fade-in delay-1">
+          <h4>Safety Rate</h4>
+          <div className="donut-container">
+            <div>
+              <div className="donut-value" style={{ color: "var(--accent-green)" }}>{safePercent}%</div>
+              <div className="donut-label">Safe</div>
+            </div>
+            <div style={{ width: 1, height: 36, background: "var(--border)" }} />
+            <div>
+              <div className="donut-value" style={{ color: "var(--accent-red)" }}>{threatPercent}%</div>
+              <div className="donut-label">Threats</div>
             </div>
           </div>
         </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 flex items-center gap-4">
-            <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
-            <p className="text-red-300">{error}</p>
+        {/* Detailed Stats */}
+        <div className="right-section animate-fade-in delay-2">
+          <h4>Breakdown</h4>
+          <div className="stat-row">
+            <span className="stat-row-label">SMS Scans</span>
+            <span className="stat-row-value" style={{ color: "var(--accent-cyan)" }}>{smsCount}</span>
           </div>
-        )}
+          <div className="stat-row">
+            <span className="stat-row-label">URL Scans</span>
+            <span className="stat-row-value" style={{ color: "var(--accent-purple)" }}>{urlCount}</span>
+          </div>
+          <div className="stat-row">
+            <span className="stat-row-label">Full Scans</span>
+            <span className="stat-row-value" style={{ color: "var(--accent-pink)" }}>{fullCount}</span>
+          </div>
+          <div style={{ borderTop: "1px solid var(--border)", marginTop: 10, paddingTop: 10 }}>
+            <div className="stat-row">
+              <span className="stat-row-label">Phishing Found</span>
+              <span className="stat-row-value" style={{ color: "var(--accent-red)" }}>{phishingCount}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-row-label">Safe Messages</span>
+              <span className="stat-row-value" style={{ color: "var(--accent-green)" }}>{safeCount}</span>
+            </div>
+          </div>
+        </div>
 
-        {/* ==================== SMS RESULTS ==================== */}
-        {result?.type === "sms" && (
-          <SmsResultCard result={result.data} getThreatColor={getThreatColor} getThreatIcon={getThreatIcon} displayScore={displayScore} />
-        )}
-
-        {/* ==================== URL RESULTS ==================== */}
-        {result?.type === "url" && result.data?.success && (
-          <UrlResultCard result={result.data} getThreatColor={getThreatColor} displayScore={displayScore} />
-        )}
-
-        {/* ==================== FULL SCAN RESULTS ==================== */}
-        {result?.type === "fullscan" && result.data?.success && (
-          <FullScanResultCard result={result.data} getThreatColor={getThreatColor} displayScore={displayScore}
-            showHeatmap={showHeatmap} setShowHeatmap={setShowHeatmap} apiUrl={API_URL} />
-        )}
+        {/* Threats detected */}
+        <div className="right-section animate-fade-in delay-3">
+          <h4>Detections</h4>
+          <div style={{ textAlign: "center", padding: "10px 0" }}>
+            <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 34, fontWeight: 700, color: phishingCount > 0 ? "var(--accent-red)" : "var(--accent-green)" }}>
+              {phishingCount}
+            </p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+              {phishingCount > 0 ? "Threats Detected" : "No Threats Yet"}
+            </p>
+          </div>
+        </div>
 
         {/* Footer */}
-        <div className="text-center text-gray-500 text-sm">
-          Protected by Machine Learning • SMS + URL + Visual Detection • PhishGuard AI
+        <div style={{ marginTop: "auto", textAlign: "center", fontSize: 11, color: "var(--text-muted)", padding: "12px 0" }}>
+          PhishGuard AI v2.0<br />ML-Powered Detection
         </div>
-      </div>
+      </aside>
+
+      {/* ============ RESULT MODAL ============ */}
+      {result && (
+        <div className="result-overlay" onClick={() => setResult(null)}>
+          <div className="result-modal" onClick={e => e.stopPropagation()} style={{ position: "relative" }}>
+            <button className="result-close" onClick={() => setResult(null)}><X size={16} /></button>
+
+            {result.type === "sms" && <SmsResult data={result.data} displayScore={displayScore} getThreatColor={getThreatColor} />}
+            {result.type === "url" && result.data?.success && <UrlResult data={result.data} displayScore={displayScore} getThreatColor={getThreatColor} />}
+            {result.type === "fullscan" && result.data?.success && (
+              <FullScanResult data={result.data} displayScore={displayScore} getThreatColor={getThreatColor}
+                setShowHeatmap={setShowHeatmap} apiUrl={API_URL} />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Heatmap Modal */}
       {showHeatmap && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onClick={() => setShowHeatmap(false)}>
-          <div className="bg-slate-900 border border-white/20 rounded-2xl p-6 max-w-2xl w-full" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Visual Difference Heatmap</h3>
-              <button onClick={() => setShowHeatmap(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+        <div className="heatmap-overlay" onClick={() => setShowHeatmap(false)}>
+          <div className="heatmap-modal" onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Visual Difference Heatmap</h3>
+              <button onClick={() => setShowHeatmap(false)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
+                <X size={18} />
+              </button>
             </div>
-            <img src={`${API_URL}/api/heatmap?t=${Date.now()}`} alt="Difference Heatmap" className="w-full rounded-xl border border-white/10" />
-            <p className="text-sm text-gray-400 mt-3">Red/warm areas indicate visual differences between the suspect and trusted site.</p>
+            <img src={`${API_URL}/api/heatmap?t=${Date.now()}`} alt="Difference Heatmap" />
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 12 }}>
+              Red/warm areas indicate visual differences between the suspect and trusted site.
+            </p>
           </div>
         </div>
       )}
@@ -307,89 +520,124 @@ export default function App() {
   );
 }
 
-/* ==================== SMS Result Card ==================== */
-function SmsResultCard({ result, getThreatColor, getThreatIcon, displayScore }) {
-  const score = displayScore(result.threat_score);
-  const colors = getThreatColor(score);
+/* ======================== Stat Card ======================== */
+function StatCard({ label, value, badge, color, delay }) {
   return (
-    <div className={`bg-gradient-to-br from-white/10 to-white/5 border rounded-3xl p-8 backdrop-blur-xl shadow-2xl animate-fade-in ${result.is_phishing ? 'border-red-500/30' : 'border-green-500/30'}`}>
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${result.is_phishing ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/40' : 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/40'}`}>
-            {getThreatIcon(result.is_phishing)}
-          </div>
-          <div>
-            <h2 className={`text-2xl font-bold ${result.is_phishing ? 'text-red-400' : 'text-green-400'}`}>
-              {result.is_phishing ? 'PHISHING DETECTED' : 'MESSAGE SAFE'}
-            </h2>
-            <p className="text-gray-400">Confidence: {(result.confidence * 100).toFixed(1)}%</p>
-          </div>
-        </div>
-        <div className={`text-center px-6 py-3 rounded-2xl ${result.is_phishing ? 'bg-red-500/20' : 'bg-green-500/20'}`}>
-          <div className={`text-4xl font-bold ${colors.text}`}>{score}</div>
-          <div className="text-xs text-gray-400 uppercase tracking-wider">Threat Score</div>
-        </div>
-      </div>
-      <ThreatGauge score={score} colors={colors} />
-      {result.is_phishing && <PhishingWarning />}
-      {result.features && <SmsFeatureGrid features={result.features} />}
+    <div className={`stat-card animate-fade-in-up ${delay}`}>
+      <span className="stat-card-label">{label}</span>
+      <span className="stat-card-value" style={{ color }}>{value}</span>
+      <span className="stat-card-sub">{badge}</span>
+      <span className="stat-card-badge" style={{ background: `${color}15`, color }}>{badge}</span>
     </div>
   );
 }
 
-/* ==================== URL Result Card ==================== */
-function UrlResultCard({ result, getThreatColor, displayScore }) {
-  const score = displayScore(result.threat_score);
+/* ======================== SMS Result ======================== */
+function SmsResult({ data, displayScore, getThreatColor }) {
+  const score = displayScore(data.threat_score);
   const colors = getThreatColor(score);
   return (
-    <div className={`bg-gradient-to-br from-white/10 to-white/5 border rounded-3xl p-8 backdrop-blur-xl shadow-2xl animate-fade-in ${result.is_phishing ? 'border-red-500/30' : 'border-green-500/30'}`}>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${result.is_phishing ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/40' : 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/40'}`}>
-            <Globe className="w-8 h-8" />
-          </div>
-          <div>
-            <h2 className={`text-2xl font-bold ${result.is_phishing ? 'text-red-400' : 'text-green-400'}`}>
-              {result.is_phishing ? 'PHISHING URL' : 'URL SAFE'}
-            </h2>
-            <p className="text-gray-400 text-sm truncate max-w-md">{result.url}</p>
-          </div>
-        </div>
-        <div className="text-center">
-          <div className={`text-4xl font-bold ${colors.text}`}>{score}</div>
-          <div className="text-xs text-gray-400 uppercase">Threat Score</div>
-          <div className={`mt-1 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}>{result.risk_level}</div>
-        </div>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+        {data.is_phishing
+          ? <ShieldAlert size={28} color="var(--accent-red)" />
+          : <ShieldCheck size={28} color="var(--accent-green)" />}
+        <h2 style={{ color: data.is_phishing ? "var(--accent-red)" : "var(--accent-green)" }}>
+          {data.is_phishing ? "PHISHING DETECTED" : "MESSAGE SAFE"}
+        </h2>
+      </div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
+        Confidence: {(data.confidence * 100).toFixed(1)}%
+      </p>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
+        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Threat Score</span>
+        <span style={{ fontFamily: "'Outfit'", fontSize: 36, fontWeight: 800, color: colors.text }}>{score}</span>
+      </div>
+      <div className="result-gauge">
+        <div className="result-gauge-fill" style={{ width: `${score}%`, background: colors.gradient }} />
       </div>
 
-      <ThreatGauge score={score} colors={colors} />
+      {data.is_phishing && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: "var(--radius-sm)",
+          background: "var(--glow-red)", border: "1px solid rgba(248,113,113,0.15)", marginTop: 14, fontSize: 13
+        }}>
+          <AlertTriangle size={18} color="var(--accent-red)" />
+          <span style={{ color: "var(--accent-red)", fontWeight: 500 }}>Do NOT click links or share personal information.</span>
+        </div>
+      )}
+
+      {data.features && (
+        <div className="result-features" style={{ marginTop: 18 }}>
+          <FeatureCard icon={<AlertTriangle size={15} />} label="Urgency" value={data.features.urgency_keywords} danger={data.features.urgency_keywords > 0} />
+          <FeatureCard icon={<TrendingUp size={15} />} label="Financial" value={data.features.financial_keywords} danger={data.features.financial_keywords > 0} />
+          <FeatureCard icon={<Zap size={15} />} label="Action" value={data.features.action_keywords} danger={data.features.action_keywords > 0} />
+          <FeatureCard icon={<Link2 size={15} />} label="URLs" value={data.features.has_url ? "Yes" : "No"} danger={data.features.has_url} />
+          <FeatureCard icon={<Phone size={15} />} label="Phone" value={data.features.has_phone ? "Yes" : "No"} danger={data.features.has_phone} />
+          <FeatureCard icon={<Type size={15} />} label="CAPS" value={data.features.excessive_caps ? "Yes" : "No"} danger={data.features.excessive_caps} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ======================== URL Result ======================== */
+function UrlResult({ data, displayScore, getThreatColor }) {
+  const score = displayScore(data.threat_score);
+  const colors = getThreatColor(score);
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+        <Globe size={28} color={data.is_phishing ? "var(--accent-red)" : "var(--accent-green)"} />
+        <h2 style={{ color: data.is_phishing ? "var(--accent-red)" : "var(--accent-green)" }}>
+          {data.is_phishing ? "PHISHING URL" : "URL SAFE"}
+        </h2>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {data.url}
+      </p>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
+        <div>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Threat Score</span>
+          <span className={`badge ${data.is_phishing ? "badge-danger" : "badge-safe"}`} style={{ marginLeft: 10 }}>
+            {data.risk_level}
+          </span>
+        </div>
+        <span style={{ fontFamily: "'Outfit'", fontSize: 36, fontWeight: 800, color: colors.text }}>{score}</span>
+      </div>
+      <div className="result-gauge">
+        <div className="result-gauge-fill" style={{ width: `${score}%`, background: colors.gradient }} />
+      </div>
 
       {/* Quick Indicators */}
-      <div className="flex gap-3 my-6">
-        <QuickIndicator label="IP Address" active={result.features?.has_ip_address} icon={<Hash className="w-4 h-4" />} />
-        <QuickIndicator label="Shortened" active={result.features?.is_shortened} icon={<Link2 className="w-4 h-4" />} />
-        <QuickIndicator label="Suspicious Words" active={result.features?.has_suspicious_words} icon={<AlertTriangle className="w-4 h-4" />} />
-        <QuickIndicator label="HTTPS" active={result.features?.has_https} icon={result.features?.has_https ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />} good />
-        <QuickIndicator label="Brand Spoof" active={result.features?.has_brand_in_subdomain} icon={<AtSign className="w-4 h-4" />} />
+      <div className="quick-indicators">
+        <QI label="IP Address" active={data.features?.has_ip_address} icon={<Hash size={13} />} />
+        <QI label="Shortened" active={data.features?.is_shortened} icon={<Link2 size={13} />} />
+        <QI label="Suspicious" active={data.features?.has_suspicious_words} icon={<AlertTriangle size={13} />} />
+        <QI label="HTTPS" active={data.features?.has_https} icon={data.features?.has_https ? <Lock size={13} /> : <Unlock size={13} />} good />
+        <QI label="Brand Spoof" active={data.features?.has_brand_in_subdomain} icon={<AtSign size={13} />} />
       </div>
 
       {/* Top Risk Features */}
-      {result.top_risk_features?.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-cyan-400" /> Top Risk Features
-          </h3>
-          {result.top_risk_features.slice(0, 5).map((feat, i) => {
-            const val = result.features?.[feat] ?? 0;
-            const maxVal = Math.max(val, 1);
-            const pct = Math.min(100, (val / maxVal) * 100);
+      {data.top_risk_features?.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <TrendingUp size={14} color="var(--accent-cyan)" /> Top Risk Features
+          </p>
+          {data.top_risk_features.slice(0, 5).map((feat, i) => {
+            const val = data.features?.[feat] ?? 0;
+            const pct = Math.min(100, Math.max(8, typeof val === "number" ? (val / Math.max(val, 1)) * 100 : 50));
             return (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-44 truncate">{feat.replace(/_/g, ' ')}</span>
-                <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full" style={{ width: `${Math.max(pct, 8)}%` }} />
+              <div key={i} className="result-risk-bar">
+                <span className="result-risk-label">{feat.replace(/_/g, " ")}</span>
+                <div className="result-risk-track">
+                  <div className="result-risk-fill" style={{ width: `${pct}%`, background: "linear-gradient(90deg, var(--accent-red), #fb923c)" }} />
                 </div>
-                <span className="text-xs text-gray-400 w-12 text-right">{typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(2)) : val}</span>
+                <span style={{ fontSize: 11, color: "var(--text-secondary)", width: 40, textAlign: "right" }}>
+                  {typeof val === "number" ? (Number.isInteger(val) ? val : val.toFixed(2)) : val}
+                </span>
               </div>
             );
           })}
@@ -399,77 +647,92 @@ function UrlResultCard({ result, getThreatColor, displayScore }) {
   );
 }
 
-/* ==================== Full Scan Result Card ==================== */
-function FullScanResultCard({ result, getThreatColor, displayScore, showHeatmap, setShowHeatmap, apiUrl }) {
-  const score = displayScore(result.combined_threat_score);
+/* ======================== Full Scan Result ======================== */
+function FullScanResult({ data, displayScore, getThreatColor, setShowHeatmap, apiUrl }) {
+  const score = displayScore(data.combined_threat_score);
   const colors = getThreatColor(score);
-
-  const smsScore = result.sms_analysis?.threat_score ?? null;
-  const urlScore = result.url_analysis?.threat_score ?? null;
-  const visualScore = result.visual_analysis?.visual_threat_score ?? null;
+  const smsScore = data.sms_analysis?.threat_score ?? null;
+  const urlScore = data.url_analysis?.threat_score ?? null;
+  const visualScore = data.visual_analysis?.visual_threat_score ?? null;
 
   return (
-    <div className={`bg-gradient-to-br from-white/10 to-white/5 border rounded-3xl p-8 backdrop-blur-xl shadow-2xl animate-fade-in ${score >= 60 ? 'border-red-500/30' : score >= 30 ? 'border-yellow-500/30' : 'border-green-500/30'}`}>
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
-          <h2 className={`text-2xl font-bold ${colors.text}`}>COMBINED THREAT ANALYSIS</h2>
-          <p className="text-gray-400 text-sm">Channels: {result.analyses_performed?.join(', ') || 'none'}</p>
+          <h2 style={{ color: colors.text }}>COMBINED THREAT ANALYSIS</h2>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+            Channels: {data.analyses_performed?.join(", ") || "none"}
+          </p>
         </div>
-        <div className="text-center">
-          <div className={`text-5xl font-bold ${colors.text}`}>{score}</div>
-          <div className={`mt-1 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}>{result.risk_level}</div>
+        <div style={{ textAlign: "right" }}>
+          <span style={{ fontFamily: "'Outfit'", fontSize: 44, fontWeight: 800, color: colors.text }}>{score}</span>
+          <br />
+          <span className={`badge ${score >= 60 ? "badge-danger" : score >= 30 ? "badge-warning" : "badge-safe"}`}>
+            {data.risk_level}
+          </span>
         </div>
       </div>
 
-      <ThreatGauge score={score} colors={colors} />
+      <div className="result-gauge">
+        <div className="result-gauge-fill" style={{ width: `${score}%`, background: colors.gradient }} />
+      </div>
 
       {/* Score Breakdown */}
-      <div className="mt-8 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-300">Score Breakdown</h3>
-        <ScoreBar label="SMS Score" weight="40%" score={smsScore} performed={result.analyses_performed?.includes('sms')} />
-        <ScoreBar label="URL Score" weight="45%" score={urlScore} performed={result.analyses_performed?.includes('url')} />
-        <ScoreBar label="Visual Score" weight="15%" score={visualScore} performed={result.analyses_performed?.includes('visual')} />
+      <div className="score-breakdown" style={{ marginTop: 20 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Score Breakdown</p>
+        <ScoreBar label="SMS Score" weight="40%" score={smsScore} performed={data.analyses_performed?.includes("sms")} />
+        <ScoreBar label="URL Score" weight="45%" score={urlScore} performed={data.analyses_performed?.includes("url")} />
+        <ScoreBar label="Visual Score" weight="15%" score={visualScore} performed={data.analyses_performed?.includes("visual")} />
       </div>
 
       {/* Extracted URLs */}
-      {result.url_analysis?.urls_checked?.length > 0 && (
-        <div className="mt-6 p-4 bg-black/30 border border-white/10 rounded-2xl">
-          <h3 className="text-sm font-bold text-gray-200 flex items-center gap-2 mb-2">
-            <Link2 className="w-4 h-4 text-cyan-400" /> Auto-Extracted URLs ({result.url_analysis.urls_checked.length})
-          </h3>
-          {result.url_analysis.urls_checked.map((u, i) => (
-            <p key={i} className="text-xs text-gray-400 truncate py-0.5">• {u}</p>
+      {data.url_analysis?.urls_checked?.length > 0 && (
+        <div style={{ marginTop: 18, padding: 16, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" }}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <Link2 size={14} color="var(--accent-cyan)" /> Auto-Extracted URLs ({data.url_analysis.urls_checked.length})
+          </p>
+          {data.url_analysis.urls_checked.map((u, i) => (
+            <p key={i} style={{ fontSize: 11.5, color: "var(--text-muted)", padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>• {u}</p>
           ))}
-          {result.url_analysis.url && (
-            <p className="text-xs text-yellow-400 mt-2">⚠ Highest risk: <span className="text-white font-medium">{result.url_analysis.url}</span></p>
+          {data.url_analysis.url && (
+            <p style={{ fontSize: 11.5, color: "var(--accent-amber)", marginTop: 6 }}>
+              ⚠ Highest risk: <span style={{ color: "white", fontWeight: 600 }}>{data.url_analysis.url}</span>
+            </p>
           )}
         </div>
       )}
 
-      {/* Visual Spoofing Card */}
-      {result.visual_analysis && !result.visual_analysis.error && (
-        <div className="mt-6 p-5 bg-black/30 border border-white/10 rounded-2xl">
-          <h3 className="text-sm font-bold text-gray-200 flex items-center gap-2 mb-3">
-            <Eye className="w-4 h-4 text-purple-400" /> Visual Spoofing Check
-          </h3>
-          <div className="flex items-center justify-between">
+      {/* Visual Spoofing */}
+      {data.visual_analysis && !data.visual_analysis.error && (
+        <div style={{ marginTop: 18, padding: 16, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" }}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <Eye size={14} color="var(--accent-purple)" /> Visual Spoofing Check
+          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div>
-              {result.visual_analysis.best_match_site && (
-                <p className="text-sm text-gray-300">Best Match: <span className="font-bold text-white uppercase">{result.visual_analysis.best_match_site}</span>
-                  <span className="text-gray-500 ml-1">({result.visual_analysis.best_match_url})</span></p>
+              {data.visual_analysis.best_match_site && (
+                <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                  Best Match: <span style={{ fontWeight: 700, color: "white", textTransform: "uppercase" }}>{data.visual_analysis.best_match_site}</span>
+                  <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>({data.visual_analysis.best_match_url})</span>
+                </p>
               )}
-              {result.visual_analysis.ssim_score > 0 && (
-                <p className="text-sm text-gray-400 mt-1">SSIM Similarity: <span className="font-bold text-white">{(result.visual_analysis.ssim_score * 100).toFixed(1)}%</span></p>
+              {data.visual_analysis.ssim_score > 0 && (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                  SSIM: <span style={{ fontWeight: 700, color: "white" }}>{(data.visual_analysis.ssim_score * 100).toFixed(1)}%</span>
+                </p>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${result.visual_analysis.spoofing_detected ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                {result.visual_analysis.spoofing_detected ? '⚠ SPOOFING DETECTED' : '✓ NO VISUAL MATCH'}
+            <div style={{ display: "flex", gap: 8 }}>
+              <span className={`badge ${data.visual_analysis.spoofing_detected ? "badge-danger" : "badge-safe"}`}>
+                {data.visual_analysis.spoofing_detected ? "⚠ SPOOFING" : "✓ NO MATCH"}
               </span>
-              {result.visual_analysis.heatmap_available && (
+              {data.visual_analysis.heatmap_available && (
                 <button onClick={() => setShowHeatmap(true)}
-                  className="px-3 py-1 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-medium hover:bg-purple-500/30 transition-all">
-                  View Heatmap
+                  style={{
+                    padding: "4px 12px", borderRadius: 8, background: "var(--glow-purple)", border: "1px solid rgba(124,100,255,0.2)",
+                    color: "var(--accent-purple)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+                  }}>
+                  Heatmap
                 </button>
               )}
             </div>
@@ -478,97 +741,62 @@ function FullScanResultCard({ result, getThreatColor, displayScore, showHeatmap,
       )}
 
       {/* SMS Details */}
-      {result.sms_analysis && !result.sms_analysis.error && result.sms_analysis.features && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <Type className="w-4 h-4 text-cyan-400" /> SMS Indicators
-          </h3>
-          <SmsFeatureGrid features={result.sms_analysis.features} compact />
+      {data.sms_analysis && !data.sms_analysis.error && data.sms_analysis.features && (
+        <div style={{ marginTop: 18 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <Type size={14} color="var(--accent-cyan)" /> SMS Indicators
+          </p>
+          <div className="result-features">
+            <FeatureCard icon={<AlertTriangle size={15} />} label="Urgency" value={data.sms_analysis.features.urgency_keywords} danger={data.sms_analysis.features.urgency_keywords > 0} />
+            <FeatureCard icon={<TrendingUp size={15} />} label="Financial" value={data.sms_analysis.features.financial_keywords} danger={data.sms_analysis.features.financial_keywords > 0} />
+            <FeatureCard icon={<Zap size={15} />} label="Action" value={data.sms_analysis.features.action_keywords} danger={data.sms_analysis.features.action_keywords > 0} />
+          </div>
         </div>
       )}
 
-      <div className="mt-4 text-xs text-gray-500 text-right">
-        Analysis time: {result.total_analysis_time_ms?.toFixed(0)}ms
-      </div>
+      <p style={{ marginTop: 14, fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>
+        Analysis time: {data.total_analysis_time_ms?.toFixed(0)}ms
+      </p>
     </div>
   );
 }
 
-/* ==================== Shared Components ==================== */
-
-function ThreatGauge({ score, colors }) {
-  return (
-    <div className="mb-6">
-      <div className="flex justify-between text-xs text-gray-500 mb-1">
-        <span>Safe</span><span>Suspicious</span><span>Dangerous</span><span>Critical</span>
-      </div>
-      <div className="h-3.5 bg-gray-800 rounded-full overflow-hidden">
-        <div className={`h-full bg-gradient-to-r ${colors.bg} transition-all duration-1000 ease-out rounded-full ${colors.glow} shadow-lg`}
-          style={{ width: `${score}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function PhishingWarning() {
-  return (
-    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
-      <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
-      <p className="text-red-300 font-medium">⚠️ This shows signs of a phishing attack. Do NOT click any links or share personal information.</p>
-    </div>
-  );
-}
-
-function SmsFeatureGrid({ features, compact }) {
-  return (
-    <div className={`grid ${compact ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-3'} gap-3`}>
-      <FeatureCard icon={<AlertTriangle className="w-4 h-4" />} label="Urgency" value={features.urgency_keywords} danger={features.urgency_keywords > 0} />
-      <FeatureCard icon={<TrendingUp className="w-4 h-4" />} label="Financial" value={features.financial_keywords} danger={features.financial_keywords > 0} />
-      <FeatureCard icon={<Zap className="w-4 h-4" />} label="Action" value={features.action_keywords} danger={features.action_keywords > 0} />
-      <FeatureCard icon={<Link2 className="w-4 h-4" />} label="URLs" value={features.has_url ? "Yes" : "No"} danger={features.has_url} />
-      <FeatureCard icon={<Phone className="w-4 h-4" />} label="Phone" value={features.has_phone ? "Yes" : "No"} danger={features.has_phone} />
-      <FeatureCard icon={<Type className="w-4 h-4" />} label="CAPS" value={features.excessive_caps ? "Yes" : "No"} danger={features.excessive_caps} />
-    </div>
-  );
-}
-
+/* ======================== Shared ======================== */
 function FeatureCard({ icon, label, value, danger }) {
   return (
-    <div className={`p-3 rounded-xl border transition-all ${danger ? 'bg-red-500/10 border-red-500/30' : 'bg-white/5 border-white/10'}`}>
-      <div className="flex items-center gap-2 mb-1">
-        <span className={danger ? 'text-red-400' : 'text-gray-400'}>{icon}</span>
-        <span className="text-xs text-gray-400">{label}</span>
+    <div className={`result-feature-card ${danger ? "danger" : ""}`}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginBottom: 4 }}>
+        <span style={{ color: danger ? "var(--accent-red)" : "var(--text-muted)" }}>{icon}</span>
+        <span className="result-feature-label">{label}</span>
       </div>
-      <div className={`text-lg font-bold ${danger ? 'text-red-400' : 'text-gray-200'}`}>{value}</div>
+      <div className="result-feature-value" style={{ color: danger ? "var(--accent-red)" : "var(--text-primary)" }}>
+        {value}
+      </div>
     </div>
   );
 }
 
-function QuickIndicator({ label, active, icon, good }) {
+function QI({ label, active, icon, good }) {
   const isActive = active === 1 || active === true;
   const isDanger = good ? !isActive : isActive;
   return (
-    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all
-      ${isDanger ? 'bg-red-500/15 border-red-500/30 text-red-400' : 'bg-white/5 border-white/10 text-gray-500'}`}>
-      {icon}
-      {label}
+    <div className={`q-indicator ${isDanger ? "active" : ""} ${good && isActive ? "good" : ""}`}>
+      {icon} {label}
     </div>
   );
 }
 
 function ScoreBar({ label, weight, score, performed }) {
   const pct = score !== null ? (score > 1 ? score : score * 100) : 0;
+  const color = pct < 30 ? "var(--accent-green)" : pct < 60 ? "var(--accent-amber)" : pct < 85 ? "#fb923c" : "var(--accent-red)";
   return (
-    <div className={`flex items-center gap-3 ${!performed ? 'opacity-30' : ''}`}>
-      <span className="text-xs text-gray-400 w-24">{label}</span>
-      <span className="text-xs text-gray-500 w-10">{weight}</span>
-      <div className="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
-        {performed && (
-          <div className={`h-full rounded-full transition-all duration-700 ${pct < 30 ? 'bg-green-500' : pct < 60 ? 'bg-yellow-500' : pct < 85 ? 'bg-orange-500' : 'bg-red-500'}`}
-            style={{ width: `${Math.max(pct, 3)}%` }} />
-        )}
+    <div className="score-bar-row" style={{ opacity: performed ? 1 : 0.3 }}>
+      <span className="score-bar-label">{label}</span>
+      <span className="score-bar-weight">{weight}</span>
+      <div className="score-bar-track">
+        {performed && <div className="score-bar-fill" style={{ width: `${Math.max(pct, 3)}%`, background: color }} />}
       </div>
-      <span className="text-xs font-bold text-gray-300 w-10 text-right">{performed ? Math.round(pct) : '—'}</span>
+      <span className="score-bar-value">{performed ? Math.round(pct) : "—"}</span>
     </div>
   );
 }
