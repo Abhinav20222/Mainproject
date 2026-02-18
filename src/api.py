@@ -296,6 +296,10 @@ def full_scan():
             r'[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:/[^\s<>\"\']*)?',  # domain.tld/path
             re.IGNORECASE
         )
+        
+        # This regex finds ALL URLs inside the message text
+        # Example: "Click http://evil.com to verify" → extracts ["http://evil.com"]
+
         extracted_urls = url_pattern.findall(message) if message else []
         # Normalize: prepend http:// if missing scheme
         extracted_urls = [
@@ -376,6 +380,16 @@ def full_scan():
                 scores[k] * (active_weights[k] / total_weight)
                 for k in scores
             )
+            # If only SMS was performed (no URLs in message):
+            #   combined = sms_score × (0.40 / 0.40) = sms_score × 1.0
+            #
+            # If SMS + URL performed:
+            #   combined = sms_score × (0.40/0.85) + url_score × (0.45/0.85)
+            #   combined = sms_score × 0.47 + url_score × 0.53
+            #   (weights are RE-NORMALIZED to sum to 1.0)
+            #
+            # If SMS + URL + Visual performed:
+            #   combined = sms × 0.40 + url × 0.45 + visual × 0.15
         else:
             combined_score = 0.0
 
