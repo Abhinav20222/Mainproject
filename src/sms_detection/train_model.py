@@ -107,8 +107,12 @@ class SMSModelTrainer:
         
         # Train
         model.fit(self.X_train, self.y_train)
+        # model.fit() = the model LEARNS patterns from the training data
+        # X_train = features (numbers), y_train = labels (0 or 1)
         
         # Predict
+        # The model has NEVER seen this test data before
+        # y_pred = array of 0s and 1s (model's guesses)
         y_pred = model.predict(self.X_test)
         y_pred_proba = model.predict_proba(self.X_test)[:, 1] if hasattr(model, 'predict_proba') else None
         

@@ -97,6 +97,8 @@ export default function App() {
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setScanHistory(prev => [entry, ...prev].slice(0, 20));
+    // Prepend new entry, keep only last 20
+    // [newScan, ...oldScans].slice(0, 20)
     setThreatHistory(prev => {
       const next = [...prev, {
         name: `#${prev.length + 1}`,
@@ -158,9 +160,9 @@ export default function App() {
   };
 
   const loadSample = (sample) => {
-    if (sample.text) setMessage(sample.text);
-    if (sample.url) setUrl(sample.url);
-    setResult(null); setError(null);
+    if (sample.text) setMessage(sample.text);// Call SMS API
+    if (sample.url) setUrl(sample.url);// Call URL API
+    setResult(null); setError(null);  // Call Full Scan API
   };
 
   const canAnalyze = () => {

@@ -1,0 +1,505 @@
+TF-IDF 500 WORD VOCABULARY
+(Auto-selected from 5,572 SMS messages during training)
+(Words are stemmed using Porter Stemmer)
+==================================================
+
+  1. abl
+  2. abt
+  3. account
+  4. actual
+  5. address
+  6. afternoon
+  7. age
+  8. aight
+  9. alreadi
+ 10. alright
+ 11. also
+ 12. alway
+ 13. amp
+ 14. anoth
+ 15. answer
+ 16. anyth
+ 17. anyway
+ 18. appli
+ 19. ard
+ 20. around
+ 21. ask
+ 22. attempt
+ 23. await
+ 24. await collect
+ 25. award
+ 26. award number
+ 27. away
+ 28. babe
+ 29. babi
+ 30. back
+ 31. bad
+ 32. bath
+ 33. beauti
+ 34. bed
+ 35. best
+ 36. better
+ 37. big
+ 38. birthday
+ 39. bit
+ 40. bonu
+ 41. book
+ 42. bore
+ 43. box
+ 44. box number
+ 45. boy
+ 46. bring
+ 47. brother
+ 48. bu
+ 49. busi
+ 50. buy
+ 51. call
+ 52. call later
+ 53. call number
+ 54. call phone
+ 55. came
+ 56. camera
+ 57. cant
+ 58. car
+ 59. care
+ 60. cash
+ 61. cash number
+ 62. caus
+ 63. chanc
+ 64. chang
+ 65. charg
+ 66. chat
+ 67. check
+ 68. claim
+ 69. claim number
+ 70. class
+ 71. close
+ 72. club
+ 73. co
+ 74. code
+ 75. code number
+ 76. collect
+ 77. colour
+ 78. come
+ 79. come home
+ 80. complet
+ 81. contact
+ 82. cool
+ 83. cost
+ 84. cost number
+ 85. could
+ 86. credit
+ 87. custom
+ 88. custom servic
+ 89. dad
+ 90. dat
+ 91. date
+ 92. day
+ 93. dear
+ 94. decid
+ 95. deliveri
+ 96. den
+ 97. detail
+ 98. di
+ 99. didnt
+100. die
+101. dinner
+102. doesnt
+103. done
+104. dont
+105. dont know
+106. doubl
+107. draw
+108. dream
+109. drink
+110. drive
+111. drop
+112. dude
+113. dun
+114. dunno
+115. earli
+116. easi
+117. eat
+118. either
+119. els
+120. email
+121. end
+122. enjoy
+123. enough
+124. enter
+125. entri
+126. entri number
+127. even
+128. ever
+129. everi
+130. everi week
+131. everyth
+132. face
+133. famili
+134. feel
+135. final
+136. find
+137. fine
+138. finish
+139. first
+140. food
+141. forgot
+142. free
+143. free call
+144. free number
+145. friend
+146. friendship
+147. frnd
+148. fuck
+149. full
+150. fun
+151. game
+152. get
+153. get number
+154. gift
+155. girl
+156. give
+157. go
+158. god
+159. goe
+160. goin
+161. gon
+162. good
+163. good morn
+164. good night
+165. got
+166. great
+167. guarante
+168. guarante call
+169. gud
+170. guess
+171. guy
+172. haf
+173. haha
+174. hair
+175. half
+176. hand
+177. happen
+178. happi
+179. hav
+180. havent
+181. he
+182. head
+183. hear
+184. heart
+185. hello
+186. help
+187. hey
+188. hold
+189. holiday
+190. home
+191. hope
+192. hot
+193. hour
+194. hous
+195. how
+196. hr
+197. hurt
+198. ill
+199. ill call
+200. import
+201. inform
+202. invit
+203. ive
+204. job
+205. join
+206. ju
+207. juz
+208. keep
+209. kiss
+210. know
+211. land
+212. landlin
+213. lar
+214. last
+215. late
+216. later
+217. latest
+218. leav
+219. left
+220. leh
+221. lei
+222. lesson
+223. let
+224. let know
+225. liao
+226. life
+227. like
+228. line
+229. listen
+230. littl
+231. live
+232. lol
+233. long
+234. look
+235. lor
+236. lose
+237. lot
+238. love
+239. ltdecimalgt
+240. ltgt
+241. lunch
+242. luv
+243. made
+244. mail
+245. make
+246. man
+247. mani
+248. match
+249. mate
+250. may
+251. mayb
+252. mean
+253. meet
+254. messag
+255. might
+256. min
+257. mind
+258. minut
+259. miss
+260. mob
+261. mobil
+262. mobil number
+263. mom
+264. money
+265. month
+266. morn
+267. movi
+268. msg
+269. much
+270. music
+271. must
+272. name
+273. need
+274. network
+275. never
+276. new
+277. new year
+278. next
+279. nice
+280. night
+281. nite
+282. noe
+283. nokia
+284. nokia number
+285. noth
+286. number
+287. number award
+288. number cash
+289. number claim
+290. number day
+291. number free
+292. number get
+293. number hr
+294. number min
+295. number mobil
+296. number number
+297. number per
+298. number phone
+299. number pmin
+300. number pound
+301. number ppm
+302. number prize
+303. number url
+304. number valid
+305. number week
+306. offer
+307. offic
+308. okay
+309. one
+310. onlin
+311. open
+312. orang
+313. order
+314. oso
+315. pain
+316. part
+317. pay
+318. peopl
+319. per
+320. person
+321. phone
+322. phone call
+323. phone number
+324. pic
+325. pick
+326. pl
+327. pl send
+328. place
+329. plan
+330. play
+331. player
+332. pleas
+333. pleas call
+334. plu
+335. plz
+336. pmin
+337. pobox
+338. pobox number
+339. point
+340. poli
+341. post
+342. pound
+343. ppm
+344. price
+345. princess
+346. prize
+347. prize guarante
+348. probabl
+349. problem
+350. put
+351. question
+352. quit
+353. rate
+354. reach
+355. read
+356. readi
+357. real
+358. realli
+359. receiv
+360. receiv number
+361. rememb
+362. repli
+363. right
+364. ring
+365. rington
+366. room
+367. run
+368. sad
+369. sae
+370. said
+371. sat
+372. saw
+373. say
+374. sch
+375. school
+376. search
+377. second
+378. see
+379. select
+380. send
+381. send stop
+382. sent
+383. servic
+384. set
+385. sexi
+386. shall
+387. she
+388. shit
+389. shop
+390. show
+391. show number
+392. sinc
+393. sir
+394. sleep
+395. sm
+396. smile
+397. smoke
+398. someon
+399. someth
+400. soon
+401. sorri
+402. sorri ill
+403. sound
+404. speak
+405. special
+406. start
+407. stay
+408. still
+409. stop
+410. stop number
+411. stori
+412. stuff
+413. sure
+414. sweet
+415. take
+416. take care
+417. talk
+418. tc
+419. tell
+420. test
+421. text
+422. thank
+423. thanx
+424. that
+425. there
+426. thing
+427. think
+428. thk
+429. though
+430. thought
+431. til
+432. till
+433. time
+434. tmr
+435. today
+436. togeth
+437. told
+438. tomorrow
+439. tone
+440. tone number
+441. tonight
+442. top
+443. tot
+444. town
+445. tri
+446. tri contact
+447. trip
+448. true
+449. tsc
+450. two
+451. txt
+452. updat
+453. urgent
+454. url
+455. use
+456. valid
+457. valid number
+458. video
+459. voucher
+460. wait
+461. wake
+462. walk
+463. wan
+464. wan number
+465. want
+466. want number
+467. wat
+468. watch
+469. way
+470. week
+471. weekend
+472. weekli
+473. well
+474. wen
+475. went
+476. what
+477. wid
+478. wif
+479. wife
+480. win
+481. win number
+482. wish
+483. without
+484. wonder
+485. wont
+486. word
+487. work
+488. world
+489. worri
+490. wot
+491. would
+492. xma
+493. xxx
+494. ye
+495. yeah
+496. year
+497. yesterday
+498. yet
+499. your
+500. yup

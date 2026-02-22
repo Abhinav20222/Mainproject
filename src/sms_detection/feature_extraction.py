@@ -44,6 +44,9 @@ class FeatureExtractor:
         )
         
         self.scaler = StandardScaler()
+        # StandardScaler normalizes numerical features to mean=0, std=1
+        # This ensures message_length (range: 10-500) doesn't dominate
+        # over uppercase_ratio (range: 0.0-1.0)
         self.feature_names = None
         self.numerical_features = None
         
@@ -75,6 +78,8 @@ class FeatureExtractor:
             tfidf_features.toarray(),
             columns=[f'tfidf_{i}' for i in range(tfidf_features.shape[1])]
         )
+        # Converts sparse matrix to DataFrame with column names: tfidf_0, tfidf_1, ..., tfidf_499
+        # Each row = one message, each column = TF-IDF weight for one word
         
         # ... (rest of the method remains the same)
         # 2. Statistical Features
@@ -116,6 +121,10 @@ class FeatureExtractor:
         return features_df
     
     def transform(self, df, text_column='processed_text'):
+        # Used when predicting a NEW message (not training)
+        # IMPORTANT: Uses self.tfidf.transform() NOT fit_transform()
+        # This means it uses the SAME vocabulary learned during training
+        # A new word not in the vocabulary is simply ignored
         """
         Transform new data using fitted extractors
         """

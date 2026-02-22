@@ -189,6 +189,15 @@ class URLFeatureExtractor:
 
         # --- Entropy Feature ---
         hostname_entropy = self._shannon_entropy(hostname)
+        # Shannon Entropy measures "randomness" of the hostname
+        # Formula: H = -Σ p(x) × log2(p(x))
+        #
+        # "google.com"         → entropy ≈ 2.5 (low — predictable, few unique chars)
+        # "x7k2m9p4q.com"      → entropy ≈ 3.8 (high — very random)
+        #
+        # Phishing domains are often randomly generated: "a3x8k2m.tk"
+        # Legitimate domains are meaningful words: "amazon.com"
+
 
         # --- Ratio Features ---
         num_letters = sum(c.isalpha() for c in url)
