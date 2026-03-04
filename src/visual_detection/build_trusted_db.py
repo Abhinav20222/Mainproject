@@ -14,21 +14,75 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 TRUSTED_DIR = PROJECT_ROOT / "data" / "trusted_screenshots"
 
-# Trusted site list
+# Trusted site list — 50+ legitimate sites for visual cloning detection
 TRUSTED_SITES = {
-    # Indian Banks
-    "sbi":   "https://www.sbi.co.in",
-    "hdfc":  "https://www.hdfcbank.com",
-    "icici": "https://www.icicibank.com",
-    "axis":  "https://www.axisbank.com",
-    # Global Banks / Finance
-    "paypal":  "https://www.paypal.com",
-    "chase":   "https://www.chase.com",
+    # ── Indian Banks (10) ──
+    "sbi":        "https://www.sbi.co.in",
+    "hdfc":       "https://www.hdfcbank.com",
+    "icici":      "https://www.icicibank.com",
+    "axis":       "https://www.axisbank.com",
+    "kotak":      "https://www.kotak.com",
+    "pnb":        "https://www.pnbindia.in",
+    "bob":        "https://www.bankofbaroda.in",
+    "canara":     "https://www.canarabank.com",
+    "unionbank":  "https://www.unionbankofindia.co.in",
+    "indusind":   "https://www.indusind.com",
+
+    # ── Global Banks / Finance (6) ──
+    "paypal":     "https://www.paypal.com",
+    "chase":      "https://www.chase.com",
     "wellsfargo": "https://www.wellsfargo.com",
-    # Popular Login Pages
-    "google":   "https://accounts.google.com",
-    "facebook": "https://www.facebook.com",
-    "amazon":   "https://www.amazon.com",
+    "bofa":       "https://www.bankofamerica.com",
+    "citibank":   "https://www.citibank.com",
+    "hsbc":       "https://www.hsbc.com",
+
+    # ── Social Media (6) ──
+    "google":     "https://accounts.google.com",
+    "facebook":   "https://www.facebook.com",
+    "instagram":  "https://www.instagram.com",
+    "twitter":    "https://www.x.com",
+    "linkedin":   "https://www.linkedin.com",
+    "whatsapp":   "https://web.whatsapp.com",
+
+    # ── E-Commerce (6) ──
+    "amazon":     "https://www.amazon.in",
+    "flipkart":   "https://www.flipkart.com",
+    "myntra":     "https://www.myntra.com",
+    "snapdeal":   "https://www.snapdeal.com",
+    "ebay":       "https://www.ebay.com",
+    "alibaba":    "https://www.alibaba.com",
+
+    # ── Payment / UPI (5) ──
+    "phonepe":    "https://www.phonepe.com",
+    "paytm":      "https://www.paytm.com",
+    "razorpay":   "https://www.razorpay.com",
+    "bharatpe":   "https://www.bharatpe.com",
+    "gpay":       "https://pay.google.com",
+
+    # ── Email Providers (4) ──
+    "gmail":      "https://mail.google.com",
+    "outlook":    "https://outlook.live.com",
+    "yahoo":      "https://mail.yahoo.com",
+    "protonmail": "https://mail.proton.me",
+
+    # ── Government / Services (5) ──
+    "irctc":      "https://www.irctc.co.in",
+    "incometax":  "https://www.incometax.gov.in",
+    "digilocker": "https://www.digilocker.gov.in",
+    "aadhaar":    "https://uidai.gov.in",
+    "passport":   "https://www.passportindia.gov.in",
+
+    # ── Tech / Cloud (5) ──
+    "microsoft":  "https://www.microsoft.com",
+    "apple":      "https://www.apple.com",
+    "netflix":    "https://www.netflix.com",
+    "dropbox":    "https://www.dropbox.com",
+    "github":     "https://github.com",
+
+    # ── Telecom (3) ──
+    "jio":        "https://www.jio.com",
+    "airtel":     "https://www.airtel.in",
+    "vi":         "https://www.myvi.in",
 }
 
 

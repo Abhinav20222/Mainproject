@@ -142,8 +142,9 @@ class ImageComparator:
                 best_distance = distance
                 best_site = site_key
 
-        # If very dissimilar to all trusted sites, return immediately
-        if best_distance > self.PHASH_THRESHOLD:
+        # For presentation demo: Force SSIM calculation always (threshold 1000)
+        # Originally: if best_distance > self.PHASH_THRESHOLD:
+        if best_distance > 1000: # This condition will almost never be true, forcing SSIM
             return {
                 "spoofing_detected": False,
                 "best_match_site": best_site,
