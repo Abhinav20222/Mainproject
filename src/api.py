@@ -21,6 +21,9 @@ os.chdir(PROJECT_ROOT)
 # The server will NOT start until models are fully loaded
 from src.model_cache import model_cache
 
+# Import database for persistent scan history
+from src.database import init_db, save_scan, get_history, clear_history
+
 # Lazy-loaded singletons for URL and visual detection
 _url_predictor = None
 _image_comparator = None
@@ -28,6 +31,9 @@ _screenshot_capturer = None
 
 TEMP_DIR = PROJECT_ROOT / "data" / "temp"
 os.makedirs(str(TEMP_DIR), exist_ok=True)
+
+# Initialize the SQLite database
+init_db()
 
 
 def get_url_predictor():
@@ -122,6 +128,14 @@ def analyze_message():
         processing_time = (time.time() - start_time) * 1000
         result['processing_time_ms'] = round(processing_time, 2)
         
+        # Auto-save to database
+        try:
+            save_scan('sms', message, result.get('threat_score', 0),
+                      result.get('is_phishing', False),
+                      'HIGH' if result.get('is_phishing') else 'LOW', result)
+        except Exception:
+            pass  # Don't fail the request if DB save fails
+        
         return jsonify(result)
     
     except Exception as e:
@@ -178,7 +192,7 @@ def analyze_url():
         result = predictor.predict(url)
 
         analysis_time = (time.time() - start_time) * 1000
-        return jsonify({
+        response = {
             'success': True,
             'url': result['url'],
             'is_phishing': result['is_phishing'],
@@ -187,7 +201,15 @@ def analyze_url():
             'top_risk_features': result['top_risk_features'],
             'features': result['features'],
             'analysis_time_ms': round(analysis_time, 2),
-        })
+        }
+        # Auto-save to database
+        try:
+            save_scan('url', url, result.get('threat_score', 0),
+                      result.get('is_phishing', False),
+                      result.get('risk_level', 'LOW'), response)
+        except Exception:
+            pass
+        return jsonify(response)
 
     except Exception as e:
         print(f"Error analyzing URL: {e}")
@@ -365,6 +387,7 @@ def full_scan():
                 try:
                     screenshot_path = capturer.capture(extracted_urls[0])
                     vis_result = comparator.compare(screenshot_path)
+                    vis_result['heatmap_available'] = vis_result.get('heatmap_path') is not None
                     visual_analysis = vis_result
                     scores['visual'] = vis_result.get('visual_threat_score', 0)
                     analyses_performed.append('visual')
@@ -405,7 +428,7 @@ def full_scan():
 
         total_time = (time.time() - start_time) * 1000
 
-        return jsonify({
+        response = {
             'success': True,
             'combined_threat_score': round(combined_score, 4),
             'risk_level': risk_level,
@@ -416,12 +439,45 @@ def full_scan():
             'score_weights': {k: round(weights[k] / sum(weights[k2] for k2 in scores), 2)
                               for k in scores} if scores else {},
             'total_analysis_time_ms': round(total_time, 2),
-        })
+        }
+        # Auto-save to database
+        try:
+            input_text = message or explicit_url or ''
+            save_scan('fullscan', input_text, combined_score,
+                      combined_score >= 0.5, risk_level, response)
+        except Exception:
+            pass
+        return jsonify(response)
 
     except Exception as e:
         print(f"Error in full scan: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# HISTORY ENDPOINTS
+# ============================================================
+
+@app.route('/api/history', methods=['GET'])
+def get_scan_history():
+    """Retrieve scan history from the database."""
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        history = get_history(limit)
+        return jsonify({'success': True, 'history': history, 'count': len(history)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/history', methods=['DELETE'])
+def delete_scan_history():
+    """Clear all scan history."""
+    try:
+        clear_history()
+        return jsonify({'success': True, 'message': 'History cleared'})
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -450,6 +506,8 @@ if __name__ == '__main__':
     print("  POST /api/analyze-url  - URL phishing analysis")
     print("  POST /api/visual-check - Visual spoofing check")
     print("  POST /api/full-scan    - Multi-channel full scan")
+    print("  GET  /api/history      - Get scan history")
+    print("  DEL  /api/history      - Clear scan history")
     print("  GET  /api/heatmap      - View diff heatmap")
     print("="*50 + "\n")
     
