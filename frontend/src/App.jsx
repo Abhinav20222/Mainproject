@@ -81,6 +81,26 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
+  // Load persisted history from database on startup
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/history?limit=50`);
+        if (res.data?.success && res.data.history?.length > 0) {
+          setScanHistory(res.data.history);
+          // Reconstruct threat chart data from loaded history
+          const chartData = res.data.history.slice().reverse().map((h, i) => ({
+            name: `#${i + 1}`,
+            threat: Math.round(h.score),
+            safe: 100 - Math.round(h.score),
+          })).slice(-15);
+          setThreatHistory(chartData);
+        }
+      } catch { /* API not ready yet, history will be empty */ }
+    };
+    loadHistory();
+  }, []);
+
   useEffect(() => {
     setResult(null);
     setError(null);
@@ -91,14 +111,14 @@ export default function App() {
       id: Date.now(),
       scanType,
       input: input.length > 50 ? input.slice(0, 50) + "…" : input,
-      score: Math.round(score > 1 ? score : score * 100),
+      score: parseFloat((score > 1 ? score : score * 100).toFixed(2)),
       isPhishing,
       riskLevel: riskLevel || (isPhishing ? "High" : "Safe"),
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
-    setScanHistory(prev => [entry, ...prev].slice(0, 20));
-    // Prepend new entry, keep only last 20
-    // [newScan, ...oldScans].slice(0, 20)
+    setScanHistory(prev => [entry, ...prev].slice(0, 50));
+    // Prepend new entry, keep only last 50
+    // [newScan, ...oldScans].slice(0, 50)
     setThreatHistory(prev => {
       const next = [...prev, {
         name: `#${prev.length + 1}`,
@@ -112,6 +132,14 @@ export default function App() {
   const displayScore = (score) => {
     if (score === undefined || score === null) return 0;
     return score > 1 ? Math.round(score) : Math.round(score * 100);
+  };
+
+  const clearScanHistory = async () => {
+    try {
+      await axios.delete(`${API_URL}/api/history`);
+    } catch { /* ignore */ }
+    setScanHistory([]);
+    setThreatHistory([]);
   };
 
   const analyzeMessage = async () => {
@@ -147,7 +175,7 @@ export default function App() {
       });
       setResult({ type: "fullscan", data: res.data });
       addToHistory("fullscan", message, res.data.combined_threat_score,
-        res.data.combined_threat_score > 50, res.data.risk_level);
+        res.data.combined_threat_score >= 0.5, res.data.risk_level);
     } catch (err) {
       setError(err.response?.data?.error || "Full scan failed.");
     } finally { setLoading(false); }
@@ -236,9 +264,21 @@ export default function App() {
         {/* Header */}
         <div className="main-header animate-fade-in">
           <div>
-            <h1>Threat Dashboard</h1>
+            <h1>
+              {activeNav === "dashboard" && "Threat Dashboard"}
+              {activeNav === "sms" && "SMS / Text Scan"}
+              {activeNav === "url" && "URL Scan"}
+              {activeNav === "fullscan" && "Full Scan"}
+              {activeNav === "history" && "Scan History"}
+              {activeNav === "settings" && "Settings"}
+            </h1>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-              Real-time phishing detection & analysis
+              {activeNav === "dashboard" && "Real-time phishing detection & analysis"}
+              {activeNav === "sms" && "Analyze SMS & text messages for phishing threats"}
+              {activeNav === "url" && "Check URLs for phishing indicators"}
+              {activeNav === "fullscan" && "Combined SMS + URL + Visual analysis"}
+              {activeNav === "history" && "Browse all previous scan results"}
+              {activeNav === "settings" && "System configuration & information"}
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -248,165 +288,348 @@ export default function App() {
           </div>
         </div>
 
-        {/* Stat Cards */}
-        <div className="stat-cards">
-          <StatCard label="SMS Scans" value={smsCount} badge={`${smsCount} total`} color="var(--accent-cyan)" delay="delay-1" />
-          <StatCard label="URL Scans" value={urlCount} badge={`${urlCount} total`} color="var(--accent-purple)" delay="delay-2" />
-          <StatCard label="Full Scans" value={fullCount} badge={`${fullCount} total`} color="var(--accent-pink)" delay="delay-3" />
-        </div>
-
-        {/* Chart */}
-        <div className="chart-section animate-fade-in-up delay-3">
-          <div className="chart-header">
-            <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Activity size={16} color="var(--accent-purple)" /> Threat History
-            </h3>
-            <div className="chart-tabs">
-              <span className="chart-tab active">Recent</span>
-              <span className="chart-tab">All</span>
+        {/* ========== DASHBOARD VIEW ========== */}
+        {activeNav === "dashboard" && (
+          <>
+            {/* Stat Cards */}
+            <div className="stat-cards">
+              <StatCard label="SMS Scans" value={smsCount} badge={`${smsCount} total`} color="var(--accent-cyan)" delay="delay-1" />
+              <StatCard label="URL Scans" value={urlCount} badge={`${urlCount} total`} color="var(--accent-purple)" delay="delay-2" />
+              <StatCard label="Full Scans" value={fullCount} badge={`${fullCount} total`} color="var(--accent-pink)" delay="delay-3" />
             </div>
-          </div>
-          {threatHistory.length > 0 ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={threatHistory}>
-                <defs>
-                  <linearGradient id="colorThreat" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#7c64ff" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#7c64ff" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorSafe" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3ecfff" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#3ecfff" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.15)" tick={{ fontSize: 11, fill: '#555d72' }} />
-                <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.08)" tick={{ fontSize: 11, fill: '#555d72' }} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#1a2030", border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 10, fontSize: 12, color: "#e8eaed"
-                  }}
-                />
-                <Area type="monotone" dataKey="threat" stroke="#7c64ff" strokeWidth={2.5}
-                  fill="url(#colorThreat)" name="Threat %" />
-                <Area type="monotone" dataKey="safe" stroke="#3ecfff" strokeWidth={1.5}
-                  fill="url(#colorSafe)" name="Safe %" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
-              <Activity size={16} style={{ marginRight: 8, opacity: 0.5 }} /> Run scans to see threat trends
+
+            {/* Chart */}
+            <div className="chart-section animate-fade-in-up delay-3">
+              <div className="chart-header">
+                <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Activity size={16} color="var(--accent-purple)" /> Threat History
+                </h3>
+                <div className="chart-tabs">
+                  <span className="chart-tab active">Recent</span>
+                  <span className="chart-tab">All</span>
+                </div>
+              </div>
+              {threatHistory.length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={threatHistory}>
+                    <defs>
+                      <linearGradient id="colorThreat" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#7c64ff" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#7c64ff" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorSafe" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3ecfff" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#3ecfff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="name" stroke="rgba(255,255,255,0.15)" tick={{ fontSize: 11, fill: '#555d72' }} />
+                    <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.08)" tick={{ fontSize: 11, fill: '#555d72' }} />
+                    <Tooltip
+                      contentStyle={{
+                        background: "#1a2030", border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 10, fontSize: 12, color: "#e8eaed"
+                      }}
+                    />
+                    <Area type="monotone" dataKey="threat" stroke="#7c64ff" strokeWidth={2.5}
+                      fill="url(#colorThreat)" name="Threat %" />
+                    <Area type="monotone" dataKey="safe" stroke="#3ecfff" strokeWidth={1.5}
+                      fill="url(#colorSafe)" name="Safe %" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                  <Activity size={16} style={{ marginRight: 8, opacity: 0.5 }} /> Run scans to see threat trends
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Scan Input Panel */}
-        <div className="input-panel animate-fade-in-up delay-4">
-          <div className="input-tabs">
-            {SCAN_TABS.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button key={tab.key}
-                  className={`input-tab ${activeTab === tab.key ? "active" : ""}`}
-                  onClick={() => setActiveTab(tab.key)}>
-                  <Icon size={15} /> {tab.label}
-                </button>
-              );
-            })}
-          </div>
+            {/* Quick Scan Panel on Dashboard */}
+            <div className="input-panel animate-fade-in-up delay-4">
+              <div className="input-tabs">
+                {SCAN_TABS.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button key={tab.key}
+                      className={`input-tab ${activeTab === tab.key ? "active" : ""}`}
+                      onClick={() => setActiveTab(tab.key)}>
+                      <Icon size={15} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-          {activeTab === "sms" && (
-            <textarea className="input-field" rows={4} value={message}
-              onChange={e => setMessage(e.target.value)}
-              placeholder="Paste a suspicious SMS or email message…" />
-          )}
-          {activeTab === "url" && (
-            <input type="text" className="input-field" value={url}
-              onChange={e => setUrl(e.target.value)}
-              placeholder="Enter a suspicious URL (e.g. http://suspicious-site.com/login)" />
-          )}
-          {activeTab === "fullscan" && (
-            <>
-              <textarea className="input-field" rows={5} value={message}
-                onChange={e => setMessage(e.target.value)}
-                placeholder={"Paste the full message here — URLs auto-detected\n\nExample: URGENT! Your SBI account has been suspended. Verify at http://sbi.login-secure.xyz/verify"} />
-              <label className="checkbox-wrapper">
-                <input type="checkbox" checked={includeVisual} onChange={e => setIncludeVisual(e.target.checked)} />
-                <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                  <Eye size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
-                  Include Visual Spoofing Analysis (slower)
-                </span>
-              </label>
-            </>
-          )}
+              {activeTab === "sms" && (
+                <textarea className="input-field" rows={4} value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  placeholder="Paste a suspicious SMS or email message…" />
+              )}
+              {activeTab === "url" && (
+                <input type="text" className="input-field" value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  placeholder="Enter a suspicious URL (e.g. http://suspicious-site.com/login)" />
+              )}
+              {activeTab === "fullscan" && (
+                <>
+                  <textarea className="input-field" rows={5} value={message}
+                    onChange={e => setMessage(e.target.value)}
+                    placeholder={"Paste the full message here — URLs auto-detected\n\nExample: URGENT! Your SBI account has been suspended. Verify at http://sbi.login-secure.xyz/verify"} />
+                  <label className="checkbox-wrapper">
+                    <input type="checkbox" checked={includeVisual} onChange={e => setIncludeVisual(e.target.checked)} />
+                    <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                      <Eye size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
+                      Include Visual Spoofing Analysis (slower)
+                    </span>
+                  </label>
+                </>
+              )}
 
-          <button className="btn-scan" onClick={handleAnalyze} disabled={loading || !canAnalyze()}>
-            {loading ? (
-              <><Loader2 size={18} className="animate-spin" /> Analyzing…</>
-            ) : (
-              <><Zap size={18} /> {activeTab === "fullscan" ? "Launch Full Scan" : "Initiate Threat Scan"}</>
+              <button className="btn-scan" onClick={handleAnalyze} disabled={loading || !canAnalyze()}>
+                {loading ? (
+                  <><Loader2 size={18} className="animate-spin" /> Analyzing…</>
+                ) : (
+                  <><Zap size={18} /> {activeTab === "fullscan" ? "Launch Full Scan" : "Initiate Threat Scan"}</>
+                )}
+              </button>
+
+              {/* Samples */}
+              <div className="samples-row">
+                {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN)
+                  .map((s, i) => (
+                    <button key={i} className={`sample-btn ${s.type === "safe" ? "safe" : "danger"}`}
+                      onClick={() => loadSample(s)}>{s.label}</button>
+                  ))}
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+                background: "var(--glow-red)", border: "1px solid rgba(248,113,113,0.2)",
+                borderRadius: "var(--radius-md)", fontSize: 13
+              }}>
+                <AlertCircle size={18} color="var(--accent-red)" />
+                <span style={{ color: "var(--accent-red)" }}>{error}</span>
+              </div>
             )}
-          </button>
 
-          {/* Samples */}
-          <div className="samples-row">
-            {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN)
-              .map((s, i) => (
-                <button key={i} className={`sample-btn ${s.type === "safe" ? "safe" : "danger"}`}
-                  onClick={() => loadSample(s)}>{s.label}</button>
-              ))}
-          </div>
-        </div>
+            {/* Recent Scans on Dashboard - compact */}
+            {scanHistory.length > 0 && (
+              <div className="scan-history animate-fade-in-up delay-5">
+                <div className="scan-history-header">
+                  <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <History size={16} color="var(--accent-cyan)" /> Recent Scans
+                  </h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {scanHistory.length} scans
+                    </span>
+                    <button onClick={() => handleNavClick("history")} style={{
+                      padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                      background: "rgba(124,100,255,0.1)", border: "1px solid rgba(124,100,255,0.2)",
+                      color: "var(--accent-purple)", cursor: "pointer"
+                    }}>View All</button>
+                  </div>
+                </div>
+                <div className="scan-row scan-row-head">
+                  <span>Time</span><span>Input</span><span>Type</span><span>Score</span><span>Status</span>
+                </div>
+                {scanHistory.slice(0, 6).map(s => (
+                  <div key={s.id} className="scan-row">
+                    <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.time}</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
+                    <span>
+                      <span className={`badge ${s.scanType === "sms" ? "badge-purple" : s.scanType === "url" ? "badge-warning" : "badge-safe"}`}>
+                        {s.scanType.toUpperCase()}
+                      </span>
+                    </span>
+                    <span style={{
+                      fontFamily: "'Outfit', sans-serif", fontWeight: 700,
+                      color: s.score < 30 ? "var(--accent-green)" : s.score < 60 ? "var(--accent-amber)" : "var(--accent-red)"
+                    }}>
+                      {s.score}
+                    </span>
+                    <span>
+                      <span className={`badge ${s.isPhishing ? "badge-danger" : "badge-safe"}`}>
+                        {s.isPhishing ? "⚠ Phishing" : "✓ Safe"}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-        {/* Error */}
-        {error && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
-            background: "var(--glow-red)", border: "1px solid rgba(248,113,113,0.2)",
-            borderRadius: "var(--radius-md)", fontSize: 13
-          }}>
-            <AlertCircle size={18} color="var(--accent-red)" />
-            <span style={{ color: "var(--accent-red)" }}>{error}</span>
+        {/* ========== SMS / URL / FULLSCAN VIEW ========== */}
+        {(activeNav === "sms" || activeNav === "url" || activeNav === "fullscan") && (
+          <>
+            <div className="input-panel animate-fade-in-up">
+              <div className="input-tabs">
+                {SCAN_TABS.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button key={tab.key}
+                      className={`input-tab ${activeTab === tab.key ? "active" : ""}`}
+                      onClick={() => { setActiveTab(tab.key); setActiveNav(tab.key); }}>
+                      <Icon size={15} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeTab === "sms" && (
+                <textarea className="input-field" rows={6} value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  placeholder="Paste a suspicious SMS or email message…" />
+              )}
+              {activeTab === "url" && (
+                <input type="text" className="input-field" value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  placeholder="Enter a suspicious URL (e.g. http://suspicious-site.com/login)" />
+              )}
+              {activeTab === "fullscan" && (
+                <>
+                  <textarea className="input-field" rows={6} value={message}
+                    onChange={e => setMessage(e.target.value)}
+                    placeholder={"Paste the full message here — URLs auto-detected\n\nExample: URGENT! Your SBI account has been suspended. Verify at http://sbi.login-secure.xyz/verify"} />
+                  <label className="checkbox-wrapper">
+                    <input type="checkbox" checked={includeVisual} onChange={e => setIncludeVisual(e.target.checked)} />
+                    <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                      <Eye size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
+                      Include Visual Spoofing Analysis (slower)
+                    </span>
+                  </label>
+                </>
+              )}
+
+              <button className="btn-scan" onClick={handleAnalyze} disabled={loading || !canAnalyze()}>
+                {loading ? (
+                  <><Loader2 size={18} className="animate-spin" /> Analyzing…</>
+                ) : (
+                  <><Zap size={18} /> {activeTab === "fullscan" ? "Launch Full Scan" : "Initiate Threat Scan"}</>
+                )}
+              </button>
+
+              {/* Samples */}
+              <div className="samples-row">
+                {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN)
+                  .map((s, i) => (
+                    <button key={i} className={`sample-btn ${s.type === "safe" ? "safe" : "danger"}`}
+                      onClick={() => loadSample(s)}>{s.label}</button>
+                  ))}
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+                background: "var(--glow-red)", border: "1px solid rgba(248,113,113,0.2)",
+                borderRadius: "var(--radius-md)", fontSize: 13
+              }}>
+                <AlertCircle size={18} color="var(--accent-red)" />
+                <span style={{ color: "var(--accent-red)" }}>{error}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ========== HISTORY VIEW ========== */}
+        {activeNav === "history" && (
+          <div className="scan-history animate-fade-in-up" style={{ marginTop: 0 }}>
+            <div className="scan-history-header">
+              <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <History size={16} color="var(--accent-cyan)" /> All Scan History
+              </h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  {scanHistory.length} scans
+                </span>
+                <button onClick={clearScanHistory} style={{
+                  padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)",
+                  color: "var(--accent-red)", cursor: "pointer"
+                }}>Clear All</button>
+              </div>
+            </div>
+            {scanHistory.length > 0 ? (
+              <>
+                <div className="scan-row scan-row-head">
+                  <span>Time</span><span>Input</span><span>Type</span><span>Score</span><span>Status</span>
+                </div>
+                {scanHistory.map(s => (
+                  <div key={s.id} className="scan-row">
+                    <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.time}</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
+                    <span>
+                      <span className={`badge ${s.scanType === "sms" ? "badge-purple" : s.scanType === "url" ? "badge-warning" : "badge-safe"}`}>
+                        {s.scanType.toUpperCase()}
+                      </span>
+                    </span>
+                    <span style={{
+                      fontFamily: "'Outfit', sans-serif", fontWeight: 700,
+                      color: s.score < 30 ? "var(--accent-green)" : s.score < 60 ? "var(--accent-amber)" : "var(--accent-red)"
+                    }}>
+                      {s.score}
+                    </span>
+                    <span>
+                      <span className={`badge ${s.isPhishing ? "badge-danger" : "badge-safe"}`}>
+                        {s.isPhishing ? "⚠ Phishing" : "✓ Safe"}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 13 }}>
+                <History size={24} style={{ opacity: 0.3, marginBottom: 8 }} />
+                <p>No scan history yet. Run a scan to see results here.</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Scan History Table */}
-        {scanHistory.length > 0 && (
-          <div className="scan-history animate-fade-in-up delay-5">
-            <div className="scan-history-header">
-              <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <History size={16} color="var(--accent-cyan)" /> Recent Scans
+        {/* ========== SETTINGS VIEW ========== */}
+        {activeNav === "settings" && (
+          <div className="animate-fade-in-up">
+            {/* System Info */}
+            <div style={{ padding: 20, background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <Shield size={16} color="var(--accent-purple)" /> System Information
               </h3>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {scanHistory.length} scans
-              </span>
+              <div className="stat-row"><span className="stat-row-label">Application</span><span className="stat-row-value">PhishGuard AI v2.0</span></div>
+              <div className="stat-row"><span className="stat-row-label">AI Engine</span><span className="stat-row-value" style={{ color: apiOnline ? "var(--accent-green)" : "var(--accent-red)" }}>{apiOnline ? "Online" : "Offline"}</span></div>
+              <div className="stat-row"><span className="stat-row-label">SMS Model</span><span className="stat-row-value">Random Forest + TF-IDF (500 features)</span></div>
+              <div className="stat-row"><span className="stat-row-label">URL Model</span><span className="stat-row-value">Random Forest (30 lexical features)</span></div>
+              <div className="stat-row"><span className="stat-row-label">Visual Detection</span><span className="stat-row-value">pHash + SSIM (47 trusted sites)</span></div>
+              <div className="stat-row"><span className="stat-row-label">Phishing Threshold</span><span className="stat-row-value">≥ 50%</span></div>
             </div>
-            <div className="scan-row scan-row-head">
-              <span>Time</span><span>Input</span><span>Type</span><span>Score</span><span>Status</span>
+
+            {/* Score Weights */}
+            <div style={{ padding: 20, background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <Scan size={16} color="var(--accent-cyan)" /> Full Scan Weights
+              </h3>
+              <ScoreBar label="SMS Analysis" weight="40%" score={0.4} performed={true} />
+              <ScoreBar label="URL Analysis" weight="45%" score={0.45} performed={true} />
+              <ScoreBar label="Visual Analysis" weight="15%" score={0.15} performed={true} />
+              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
+                Weights are re-normalized when fewer channels are active.
+              </p>
             </div>
-            {scanHistory.slice(0, 8).map(s => (
-              <div key={s.id} className="scan-row">
-                <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.time}</span>
-                <span style={{ color: "var(--text-secondary)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
-                <span>
-                  <span className={`badge ${s.scanType === "sms" ? "badge-purple" : s.scanType === "url" ? "badge-warning" : "badge-safe"}`}>
-                    {s.scanType.toUpperCase()}
-                  </span>
-                </span>
-                <span style={{
-                  fontFamily: "'Outfit', sans-serif", fontWeight: 700,
-                  color: s.score < 30 ? "var(--accent-green)" : s.score < 60 ? "var(--accent-amber)" : "var(--accent-red)"
-                }}>
-                  {s.score}
-                </span>
-                <span>
-                  <span className={`badge ${s.isPhishing ? "badge-danger" : "badge-safe"}`}>
-                    {s.isPhishing ? "⚠ Phishing" : "✓ Safe"}
-                  </span>
-                </span>
-              </div>
-            ))}
+
+            {/* Risk Levels */}
+            <div style={{ padding: 20, background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle size={16} color="var(--accent-amber)" /> Risk Level Thresholds
+              </h3>
+              <div className="stat-row"><span className="stat-row-label">LOW</span><span className="stat-row-value" style={{ color: "var(--accent-green)" }}>0 – 29%</span></div>
+              <div className="stat-row"><span className="stat-row-label">MEDIUM</span><span className="stat-row-value" style={{ color: "var(--accent-amber)" }}>30 – 59%</span></div>
+              <div className="stat-row"><span className="stat-row-label">HIGH</span><span className="stat-row-value" style={{ color: "#fb923c" }}>60 – 84%</span></div>
+              <div className="stat-row"><span className="stat-row-label">CRITICAL</span><span className="stat-row-value" style={{ color: "var(--accent-red)" }}>85 – 100%</span></div>
+            </div>
           </div>
         )}
       </main>
@@ -705,40 +928,55 @@ function FullScanResult({ data, displayScore, getThreatColor, setShowHeatmap, ap
       )}
 
       {/* Visual Spoofing */}
-      {data.visual_analysis && !data.visual_analysis.error && (
+      {data.analyses_performed?.includes("visual") && data.visual_analysis && (
         <div style={{ marginTop: 18, padding: 16, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" }}>
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
             <Eye size={14} color="var(--accent-purple)" /> Visual Spoofing Check
           </p>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-            <div>
-              {data.visual_analysis.best_match_site && (
-                <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                  Best Match: <span style={{ fontWeight: 700, color: "white", textTransform: "uppercase" }}>{data.visual_analysis.best_match_site}</span>
-                  <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>({data.visual_analysis.best_match_url})</span>
-                </p>
-              )}
-              {data.visual_analysis.ssim_score > 0 && (
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                  SSIM: <span style={{ fontWeight: 700, color: "white" }}>{(data.visual_analysis.ssim_score * 100).toFixed(1)}%</span>
-                </p>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <span className={`badge ${data.visual_analysis.spoofing_detected ? "badge-danger" : "badge-safe"}`}>
-                {data.visual_analysis.spoofing_detected ? "⚠ SPOOFING" : "✓ NO MATCH"}
-              </span>
-              {data.visual_analysis.heatmap_available && (
-                <button onClick={() => setShowHeatmap(true)}
-                  style={{
-                    padding: "4px 12px", borderRadius: 8, background: "var(--glow-purple)", border: "1px solid rgba(124,100,255,0.2)",
-                    color: "var(--accent-purple)", fontSize: 11, fontWeight: 600, cursor: "pointer"
-                  }}>
-                  Heatmap
-                </button>
-              )}
-            </div>
-          </div>
+          {data.visual_analysis.error ? (
+            <p style={{ fontSize: 12, color: "var(--accent-amber)" }}>⚠ {data.visual_analysis.error}</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  {data.visual_analysis.best_match_site && (
+                    <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                      Closest Match: <span style={{ fontWeight: 700, color: "white", textTransform: "uppercase" }}>{data.visual_analysis.best_match_site}</span>
+                      <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>({data.visual_analysis.best_match_url})</span>
+                    </p>
+                  )}
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                    pHash Distance: <span style={{ fontWeight: 700, color: "white" }}>{data.visual_analysis.phash_distance ?? "—"}</span>
+                    <span style={{ marginLeft: 12 }}>
+                      SSIM: <span style={{ fontWeight: 700, color: "white" }}>
+                        {data.visual_analysis.ssim_score > 0
+                          ? `${(data.visual_analysis.ssim_score * 100).toFixed(1)}%`
+                          : "Skipped (pHash too different)"}
+                      </span>
+                    </span>
+                  </p>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                    Method: <span style={{ color: "var(--accent-cyan)" }}>{data.visual_analysis.analysis_method}</span>
+                    {" · "}Compared against <span style={{ color: "white", fontWeight: 600 }}>47 trusted sites</span>
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <span className={`badge ${data.visual_analysis.spoofing_detected ? "badge-danger" : "badge-safe"}`}>
+                    {data.visual_analysis.spoofing_detected ? "⚠ SPOOFING" : "✓ NO CLONING"}
+                  </span>
+                  {data.visual_analysis.heatmap_available && (
+                    <button onClick={() => setShowHeatmap(true)}
+                      style={{
+                        padding: "4px 12px", borderRadius: 8, background: "var(--glow-purple)", border: "1px solid rgba(124,100,255,0.2)",
+                        color: "var(--accent-purple)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+                      }}>
+                      Heatmap
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

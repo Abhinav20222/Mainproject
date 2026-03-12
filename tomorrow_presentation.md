@@ -878,3 +878,71 @@ How it works:
   Features per node (√total) | 23 | 5
   max_depth | None (unlimited) | None (unlimited)
   class_weight | default | 'balanced'
+
+---
+
+# 🎯 EVALUATION PRESENTATION — How to Start & What to Say
+
+---
+
+## Opening (30 seconds)
+
+> *"Good morning. Our project is a **Multi-Channel Phishing Detection System** that uses **Machine Learning** to detect phishing attacks through three channels — **SMS text analysis, URL structural analysis, and Visual forensic analysis**. The core algorithm is **Random Forest**, and I'll explain exactly how it works from data input to threat score output."*
+
+---
+
+## Recommended Presentation Flow:
+
+### 1️⃣ Start with the Dataset (2 min)
+> *"We use two datasets:*
+> - *SMS: UCI SMS Spam Collection — 5,572 real messages (4,825 ham + 747 spam) from Kaggle, the most cited SMS benchmark*
+> - *URL: Custom dataset — 4,775 URLs (2,775 phishing from PhishTank + 2,000 legitimate from Alexa Top Sites, including Indian banking URLs)"*
+
+### 2️⃣ Feature Extraction (3 min)
+> *"For SMS, we extract 519 features:*
+> - *500 TF-IDF word features — top 500 words auto-selected from vocabulary*
+> - *19 statistical features — urgency count, URL presence, uppercase ratio, etc."*
+>
+> *"For URL, we extract 28 structural features:*
+> - *url_length, num_dots, has_ip_address, hostname_entropy, has_suspicious_words, etc.*
+> - *No TF-IDF for URL — we analyze structure, not content."*
+
+### 3️⃣ Random Forest Algorithm — THE MAIN PART (5 min)
+> *"We train 4 models for SMS (Naive Bayes, Logistic Regression, SVM, Random Forest) and 4 for URL (Logistic Regression, Gradient Boosting, XGBoost, Random Forest). Random Forest performed best in both. Here's how it works:"*
+>
+> - 100 trees (SMS) / 200 trees (URL)
+> - Each tree gets a bootstrap sample of ALL training messages (not just one message)
+> - At each node: randomly select √features (23 for SMS, 5 for URL), pick best split using Gini impurity
+> - Tree grows until leaves are pure (Gini = 0)
+> - Prediction = majority vote of all trees
+
+### 4️⃣ Why Random Forest Over Others? (2 min)
+> *"Naive Bayes assumes word independence — misses word combinations like 'click + verify'. Logistic Regression draws a straight line boundary — can't handle complex patterns. SVM is slow on 519 features. Random Forest captures non-linear patterns, handles mixed features naturally, provides feature importance rankings, and resists overfitting through bagging (100 trees average out errors)."*
+
+### 5️⃣ Threat Score Calculation (2 min)
+> *"The final threat score combines three weights:*
+> - *SMS analysis: 40% weight*
+> - *URL analysis: 45% weight (highest because URL structure is strongest indicator)*
+> - *Visual analysis: 15% weight (supplementary)*
+> - *Weights are re-normalized if any analysis is skipped*
+> - *Risk levels: LOW (<30%), MEDIUM (30-60%), HIGH (60-85%), CRITICAL (85%+)"*
+
+### 6️⃣ Close with Results
+> *"SMS model achieves ~97% accuracy. URL model achieves ~95% F1-score with 0.98 ROC AUC. Random Forest was selected through cross-validation as the most stable and accurate model for both tasks."*
+
+---
+
+## ⚡ Quick Ready-Answers for Tough Questions:
+
+| If they ask... | Say this... |
+|---|---|
+| "How many epochs?" | "Random Forest doesn't use epochs — it uses n_estimators (100/200 trees). Epochs are for neural networks, not traditional ML." |
+| "Why 0.95 F1 but 0.98 AUC?" | "F1 measures at one threshold (0.5), AUC measures across all possible thresholds. AUC is almost always ≥ F1. Both confirm RF is the best model." |
+| "What are 23 features per node?" | "At each node, √519 ≈ 23 random features are sampled. This is NOT the number of nodes — each tree has hundreds of nodes, and each node picks a NEW random 23." |
+| "Is TF-IDF vocabulary fixed?" | "Yes, 500 words selected once during training, saved in feature_extractor.pkl, reused for every prediction." |
+| "Why so many zeros in features?" | "Sparse matrix — each message has only 10-20 words out of 500 vocabulary. Zeros mean that word doesn't appear in that message." |
+| "How does tree know to stop?" | "When the node is pure (Gini = 0, all samples are same class) or min_samples_split is reached." |
+| "Does each tree train on one message?" | "No! Each tree trains on ALL messages (bootstrap sample of ~4,458). During prediction, a single message goes through all 100 trees." |
+| "Where is the dataset from?" | "SMS: UCI/Kaggle (5,572 messages, most cited benchmark). URL: PhishTank + Alexa Top Sites (4,775 URLs, used by Firefox browser)." |
+| "What is class_weight balanced?" | "Gives higher importance to the minority class so the model doesn't just predict the majority class every time." |
+| "What tools for training?" | "Python scripts (.py files), NOT Jupyter/Colab. Scikit-learn for ML, NLTK for NLP, Pandas for data, Flask for API." |
