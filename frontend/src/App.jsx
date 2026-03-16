@@ -57,6 +57,7 @@ export default function App() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [scanHistory, setScanHistory] = useState([]);
   const [threatHistory, setThreatHistory] = useState([]);
+  const [chartRange, setChartRange] = useState("recent");
 
   // Counters
   const smsCount = scanHistory.filter(s => s.scanType === "sms").length;
@@ -85,7 +86,7 @@ export default function App() {
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/history?limit=50`);
+        const res = await axios.get(`${API_URL}/api/history?limit=100`);
         if (res.data?.success && res.data.history?.length > 0) {
           setScanHistory(res.data.history);
           // Reconstruct threat chart data from loaded history
@@ -93,7 +94,7 @@ export default function App() {
             name: `#${i + 1}`,
             threat: Math.round(h.score),
             safe: 100 - Math.round(h.score),
-          })).slice(-15);
+          }));
           setThreatHistory(chartData);
         }
       } catch { /* API not ready yet, history will be empty */ }
@@ -110,23 +111,22 @@ export default function App() {
     const entry = {
       id: Date.now(),
       scanType,
-      input: input.length > 50 ? input.slice(0, 50) + "…" : input,
+      input: input,
       score: parseFloat((score > 1 ? score : score * 100).toFixed(2)),
       isPhishing,
       riskLevel: riskLevel || (isPhishing ? "High" : "Safe"),
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
-    setScanHistory(prev => [entry, ...prev].slice(0, 50));
-    // Prepend new entry, keep only last 50
-    // [newScan, ...oldScans].slice(0, 50)
-    setThreatHistory(prev => {
-      const next = [...prev, {
+    setScanHistory(prev => [entry, ...prev].slice(0, 100));
+    // Prepend new entry, keep only last 100
+    setThreatHistory(prev => [
+      ...prev,
+      {
         name: `#${prev.length + 1}`,
         threat: entry.score,
         safe: 100 - entry.score,
-      }];
-      return next.slice(-15);
-    });
+      },
+    ]);
   }, []);
 
   const displayScore = (score) => {
@@ -305,13 +305,15 @@ export default function App() {
                   <Activity size={16} color="var(--accent-purple)" /> Threat History
                 </h3>
                 <div className="chart-tabs">
-                  <span className="chart-tab active">Recent</span>
-                  <span className="chart-tab">All</span>
+                  <span className={`chart-tab ${chartRange === "recent" ? "active" : ""}`}
+                    onClick={() => setChartRange("recent")} style={{ cursor: "pointer" }}>Recent</span>
+                  <span className={`chart-tab ${chartRange === "all" ? "active" : ""}`}
+                    onClick={() => setChartRange("all")} style={{ cursor: "pointer" }}>All</span>
                 </div>
               </div>
               {threatHistory.length > 0 ? (
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={threatHistory}>
+                  <AreaChart data={chartRange === "recent" ? threatHistory.slice(-15) : threatHistory}>
                     <defs>
                       <linearGradient id="colorThreat" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#7c64ff" stopOpacity={0.35} />
@@ -392,14 +394,7 @@ export default function App() {
                 )}
               </button>
 
-              {/* Samples */}
-              <div className="samples-row">
-                {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN)
-                  .map((s, i) => (
-                    <button key={i} className={`sample-btn ${s.type === "safe" ? "safe" : "danger"}`}
-                      onClick={() => loadSample(s)}>{s.label}</button>
-                  ))}
-              </div>
+
             </div>
 
             {/* Error */}
@@ -435,10 +430,10 @@ export default function App() {
                 <div className="scan-row scan-row-head">
                   <span>Time</span><span>Input</span><span>Type</span><span>Score</span><span>Status</span>
                 </div>
-                {scanHistory.slice(0, 6).map(s => (
+                {scanHistory.slice(0, 10).map(s => (
                   <div key={s.id} className="scan-row">
                     <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.time}</span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, wordBreak: "break-word", whiteSpace: "normal" }}>{s.input}</span>
                     <span>
                       <span className={`badge ${s.scanType === "sms" ? "badge-purple" : s.scanType === "url" ? "badge-warning" : "badge-safe"}`}>
                         {s.scanType.toUpperCase()}
@@ -512,14 +507,7 @@ export default function App() {
                 )}
               </button>
 
-              {/* Samples */}
-              <div className="samples-row">
-                {(activeTab === "sms" ? SAMPLE_MESSAGES : activeTab === "url" ? SAMPLE_URLS : SAMPLE_FULLSCAN)
-                  .map((s, i) => (
-                    <button key={i} className={`sample-btn ${s.type === "safe" ? "safe" : "danger"}`}
-                      onClick={() => loadSample(s)}>{s.label}</button>
-                  ))}
-              </div>
+
             </div>
 
             {/* Error */}
@@ -562,7 +550,7 @@ export default function App() {
                 {scanHistory.map(s => (
                   <div key={s.id} className="scan-row">
                     <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.time}</span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, wordBreak: "break-word", whiteSpace: "normal" }}>{s.input}</span>
                     <span>
                       <span className={`badge ${s.scanType === "sms" ? "badge-purple" : s.scanType === "url" ? "badge-warning" : "badge-safe"}`}>
                         {s.scanType.toUpperCase()}
@@ -603,7 +591,7 @@ export default function App() {
               <div className="stat-row"><span className="stat-row-label">AI Engine</span><span className="stat-row-value" style={{ color: apiOnline ? "var(--accent-green)" : "var(--accent-red)" }}>{apiOnline ? "Online" : "Offline"}</span></div>
               <div className="stat-row"><span className="stat-row-label">SMS Model</span><span className="stat-row-value">Random Forest + TF-IDF (500 features)</span></div>
               <div className="stat-row"><span className="stat-row-label">URL Model</span><span className="stat-row-value">Random Forest (30 lexical features)</span></div>
-              <div className="stat-row"><span className="stat-row-label">Visual Detection</span><span className="stat-row-value">pHash + SSIM (47 trusted sites)</span></div>
+              <div className="stat-row"><span className="stat-row-label">Visual Detection</span><span className="stat-row-value">pHash + SSIM (54 trusted sites)</span></div>
               <div className="stat-row"><span className="stat-row-label">Phishing Threshold</span><span className="stat-row-value">≥ 50%</span></div>
             </div>
 
@@ -727,16 +715,22 @@ export default function App() {
       {/* Heatmap Modal */}
       {showHeatmap && (
         <div className="heatmap-overlay" onClick={() => setShowHeatmap(false)}>
-          <div className="heatmap-modal" onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Visual Difference Heatmap</h3>
+          <div className="heatmap-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 1000 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Visual Comparison — Side-by-Side Analysis</h3>
               <button onClick={() => setShowHeatmap(false)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
                 <X size={18} />
               </button>
             </div>
-            <img src={`${API_URL}/api/heatmap?t=${Date.now()}`} alt="Difference Heatmap" />
-            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 12 }}>
-              Red/warm areas indicate visual differences between the suspect and trusted site.
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--text-secondary)" }}>Left:</strong> Live screenshot captured from the suspect URL &nbsp;|&nbsp;
+              <strong style={{ color: "var(--text-secondary)" }}>Center:</strong> Stored trusted site screenshot &nbsp;|&nbsp;
+              <strong style={{ color: "var(--text-secondary)" }}>Right:</strong> Pixel-level differences overlayed (red/bright = changed areas)
+            </p>
+            <img src={`${API_URL}/api/heatmap?t=${Date.now()}`} alt="Side-by-side visual comparison" style={{ borderRadius: 8, border: "1px solid var(--border)" }} />
+            <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 10, lineHeight: 1.5 }}>
+              The SSIM (Structural Similarity Index) measures how structurally similar the suspect page is to the closest trusted site.
+              A higher SSIM means the pages look more alike — if a phishing site mimics a bank&apos;s layout, this score will be high.
             </p>
           </div>
         </div>
@@ -930,8 +924,11 @@ function FullScanResult({ data, displayScore, getThreatColor, setShowHeatmap, ap
       {/* Visual Spoofing */}
       {data.analyses_performed?.includes("visual") && data.visual_analysis && (
         <div style={{ marginTop: 18, padding: 16, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" }}>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
             <Eye size={14} color="var(--accent-purple)" /> Visual Spoofing Check
+          </p>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+            A live screenshot of the URL was captured and compared pixel-by-pixel against 54 stored trusted site screenshots using pHash (fast fingerprint filter) + SSIM (deep structural similarity).
           </p>
           {data.visual_analysis.error ? (
             <p style={{ fontSize: 12, color: "var(--accent-amber)" }}>⚠ {data.visual_analysis.error}</p>
@@ -957,7 +954,7 @@ function FullScanResult({ data, displayScore, getThreatColor, setShowHeatmap, ap
                   </p>
                   <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
                     Method: <span style={{ color: "var(--accent-cyan)" }}>{data.visual_analysis.analysis_method}</span>
-                    {" · "}Compared against <span style={{ color: "white", fontWeight: 600 }}>47 trusted sites</span>
+                    {" · "}Compared against <span style={{ color: "white", fontWeight: 600 }}>54 trusted sites</span>
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>

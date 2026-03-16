@@ -207,15 +207,88 @@ class ImageComparator:
             )
             ssim_score = float(ssim_score)
 
-            # Generate difference heatmap
+            # Generate annotated 3-panel composite heatmap
             heatmap_path = None
             try:
+                # --- Build composite: [Suspect | Trusted | Diff Overlay] ---
+                PANEL_W, PANEL_H = 456, 280  # each panel size
+                TITLE_H = 48       # title bar height
+                LABEL_H = 32       # label bar height below panels
+                LEGEND_H = 40      # color legend height
+                GAP = 12           # gap between panels
+                TOTAL_W = PANEL_W * 3 + GAP * 4
+                TOTAL_H = TITLE_H + PANEL_H + LABEL_H + LEGEND_H + 16
+
+                # Resize both images to panel size for display
+                suspect_resized = cv2.resize(suspect_cv, (PANEL_W, PANEL_H))
+                trusted_resized = cv2.resize(trusted_cv, (PANEL_W, PANEL_H))
+
+                # Build difference overlay: heatmap blended onto suspect image
                 diff_normalized = ((1 - diff) * 255).astype(np.uint8)
-                heatmap = cv2.applyColorMap(diff_normalized, cv2.COLORMAP_JET)
+                diff_resized = cv2.resize(diff_normalized, (PANEL_W, PANEL_H))
+                diff_color = cv2.applyColorMap(diff_resized, cv2.COLORMAP_HOT)
+                # Blend: 55% original + 45% heatmap for readability
+                overlay = cv2.addWeighted(suspect_resized, 0.55, diff_color, 0.45, 0)
+
+                # Create canvas (dark background)
+                canvas = np.zeros((TOTAL_H, TOTAL_W, 3), dtype=np.uint8)
+                canvas[:] = (30, 25, 20)  # dark background (BGR)
+
+                # --- Title bar ---
+                ssim_pct = f"{ssim_score * 100:.1f}%"
+                site_name = best_site.upper()
+                title_text = f"Visual Spoofing Analysis  |  Closest Match: {site_name}  |  SSIM: {ssim_pct}"
+                cv2.rectangle(canvas, (0, 0), (TOTAL_W, TITLE_H), (50, 40, 30), -1)
+                cv2.putText(canvas, title_text, (GAP + 4, 32),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.62, (220, 220, 220), 1, cv2.LINE_AA)
+
+                # --- Place 3 panels ---
+                y_start = TITLE_H + 4
+                for i, (img, label) in enumerate([
+                    (suspect_resized, "Captured Suspect Screenshot"),
+                    (trusted_resized, f"Stored Trusted: {site_name}"),
+                    (overlay, "Differences (Red = Changed)"),
+                ]):
+                    x = GAP + i * (PANEL_W + GAP)
+                    # Panel border
+                    cv2.rectangle(canvas, (x - 1, y_start - 1),
+                                  (x + PANEL_W + 1, y_start + PANEL_H + 1),
+                                  (80, 80, 80), 1)
+                    # Paste image
+                    canvas[y_start:y_start + PANEL_H, x:x + PANEL_W] = img
+                    # Label below panel
+                    label_y = y_start + PANEL_H + 20
+                    cv2.putText(canvas, label, (x + 4, label_y),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.48, (180, 180, 180), 1, cv2.LINE_AA)
+
+                # --- Color legend bar ---
+                legend_y = y_start + PANEL_H + LABEL_H + 8
+                legend_x_start = GAP
+                legend_bar_w = TOTAL_W - GAP * 2
+                # Draw gradient bar
+                for px in range(legend_bar_w):
+                    intensity = int(px / legend_bar_w * 255)
+                    color_pixel = cv2.applyColorMap(
+                        np.array([[intensity]], dtype=np.uint8), cv2.COLORMAP_HOT
+                    )[0][0]
+                    cv2.line(canvas,
+                             (legend_x_start + px, legend_y),
+                             (legend_x_start + px, legend_y + 14),
+                             color_pixel.tolist(), 1)
+                # Legend labels
+                cv2.putText(canvas, "Identical", (legend_x_start, legend_y + 28),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.40, (140, 140, 140), 1, cv2.LINE_AA)
+                cv2.putText(canvas, "Different", (legend_x_start + legend_bar_w - 70, legend_y + 28),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.40, (140, 140, 140), 1, cv2.LINE_AA)
+                mid_text = "Color Legend"
+                cv2.putText(canvas, mid_text, (TOTAL_W // 2 - 40, legend_y + 28),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.40, (140, 140, 140), 1, cv2.LINE_AA)
+
                 heatmap_file = str(TEMP_DIR / "diff_heatmap.png")
-                cv2.imwrite(heatmap_file, heatmap)
+                cv2.imwrite(heatmap_file, canvas)
                 heatmap_path = heatmap_file
-            except Exception:
+            except Exception as e:
+                print(f"[WARN] Heatmap generation failed: {e}")
                 pass
 
             # Determine spoofing
