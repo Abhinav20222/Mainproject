@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1366" />
+  <title>SBI Net Banking | State Bank of India</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; background: #f0f0f0; color: #333; font-size: 14px; }
+    a { text-decoration: none; color: inherit; }
+
+    /* ══════════ HEADER ══════════ */
+    .header {
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 16px;
+      border-bottom: 1px solid #ddd;
+    }
+    .sbi-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* The iconic SBI globe circle in blue */
+    .sbi-globe {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #1565c0, #0d47a1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .sbi-globe::before {
+      content: '';
+      position: absolute;
+      width: 32px; height: 32px;
+      border: 3px solid rgba(255,255,255,0.7);
+      border-radius: 50%;
+    }
+    .sbi-globe::after {
+      content: '';
+      position: absolute;
+      width: 0; height: 32px;
+      border-left: 3px solid rgba(255,255,255,0.7);
+    }
+    .sbi-globe-lines {
+      position: absolute;
+      width: 32px; height: 3px;
+      background: rgba(255,255,255,0.7);
+    }
+    .sbi-logo-text {
+      font-size: 32px;
+      font-weight: 900;
+      color: #003087;
+      letter-spacing: 0.5px;
+    }
+    /* YONO eSBI badge top-right */
+    .yono-badge {
+      background: linear-gradient(135deg, #7b1fa2, #4a148c);
+      color: white;
+      border-radius: 8px;
+      padding: 4px 10px 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.3;
+      text-align: center;
+    }
+    .yono-badge .yono-title {
+      font-size: 16px;
+      font-style: italic;
+      font-weight: 900;
+      color: #fff;
+    }
+    .yono-badge .esbi-text {
+      font-size: 11px;
+      color: #e0c4ff;
+      font-weight: 600;
+    }
+    .skip-link {
+      font-size: 12px;
+      color: #1565c0;
+      margin-right: 16px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* ══════════ NAV ══════════ */
+    nav {
+      background: linear-gradient(to bottom, #1e3a5f, #16305a);
+      display: flex;
+      align-items: stretch;
+      padding: 0 8px;
+    }
+    nav a {
+      color: #cde;
+      font-size: 12.5px;
+      font-weight: 500;
+      padding: 10px 11px;
+      white-space: nowrap;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    nav a:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .nav-arrow { font-size: 9px; }
+    .nav-new {
+      font-size: 8px;
+      background: #ff9800;
+      color: white;
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-left: 3px;
+      font-weight: 700;
+    }
+    .nav-hindi {
+      margin-left: auto;
+      color: #ff9800 !important;
+      font-weight: 700 !important;
+      font-size: 15px !important;
+    }
+
+    /* ══════════ NOTICE BARS ══════════ */
+    .notice-bar-1 {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      text-align: center;
+      padding: 7px 12px;
+      font-size: 12.5px;
+      color: #1b5e20;
+      font-weight: 600;
+    }
+    .notice-bar-2 {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      text-align: center;
+      padding: 6px 12px;
+      font-size: 12.5px;
+      color: #0d47a1;
+    }
+    .notice-bar-2 strong { color: #c62828; }
+    .ticker-bar {
+      background: #e8f5e9;
+      border-bottom: 1px solid #c8e6c9;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #c62828;
+      text-align: right;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    /* ══════════ MAIN CARDS ══════════ */
+    .cards-wrapper {
+      background: #fff;
+      display: flex;
+      margin: 10px 10px;
+      border: 1px solid #d0d0d0;
+    }
+    .card {
+      flex: 1;
+      padding: 32px 40px 28px;
+      text-align: center;
+      border-right: 1px solid #d0d0d0;
+    }
+    .card:last-child { border-right: none; }
+
+    /* YONO logo inside card */
+    .yono-card-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+    .yono-text {
+      font-size: 26px;
+      font-style: italic;
+      font-weight: 900;
+      color: #7b1fa2;
+    }
+    .yono-sbi-icon {
+      width: 26px; height: 26px;
+      background: linear-gradient(135deg, #1565c0, #0d47a1);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 9px;
+      font-weight: 900;
+    }
+    .yono-sbi-text {
+      font-size: 22px;
+      font-weight: 900;
+      color: #1565c0;
+    }
+    .card-sub {
+      font-size: 11px;
+      color: #888;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      margin-bottom: 8px;
+    }
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      margin-bottom: 22px;
+    }
+    .card-title.personal span:first-child { color: #00897b; }
+    .card-title.personal span:last-child  { color: #1a237e; }
+    .card-title.corporate { color: #1a237e; letter-spacing: 2px; }
+
+    /* LOGIN button */
+    .btn-login {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(to bottom, #1a3a6e, #0d47a1);
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      padding: 10px 36px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-bottom: 24px;
+    }
+    .btn-arrow { font-size: 18px; font-weight: 300; }
+
+    /* Quick icon links below LOGIN */
+    .card-links {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .card-link-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      color: #333;
+      width: 80px;
+      text-align: center;
+      line-height: 1.3;
+      cursor: pointer;
+    }
+    .card-link-icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .icon-user   { background: #ff8a65; color: white; }
+    .icon-help   { background: #42a5f5; color: white; }
+    .icon-care   { background: #ff8a65; color: white; }
+    .icon-lock   { background: #66bb6a; color: white; }
+
+    .card-desc {
+      font-size: 12px;
+      color: #555;
+      font-style: italic;
+      text-align: center;
+      padding: 0 10px;
+      line-height: 1.5;
+    }
+
+    /* Corporate card italic text */
+    .corp-desc {
+      font-size: 12px;
+      color: #777;
+      font-style: italic;
+      text-align: center;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    /* ══════════ BOTTOM LINKS GRID ══════════ */
+    .bottom-links {
+      background: #fff;
+      margin: 0 10px 16px;
+      border: 1px solid #d0d0d0;
+      border-top: none;
+      padding: 14px 20px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px 24px;
+    }
+    .bottom-link {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 12.5px;
+      color: #1565c0;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .bottom-link::before {
+      content: "›";
+      color: #1565c0;
+      font-size: 18px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .bottom-link .new-badge {
+      font-size: 8px;
+      background: #ff9800;
+      color: white;
+      border-radius: 2px;
+      padding: 1px 3px;
+      font-weight: 700;
+      vertical-align: super;
+    }
+    .bottom-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="sbi-logo">
+      <!-- SBI Globe SVG (faithful reproduction) -->
+      <svg width="52" height="52" viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="26" fill="#003087"/>
+        <!-- Globe lines -->
+        <circle cx="26" cy="26" r="18" fill="none" stroke="white" stroke-width="2"/>
+        <ellipse cx="26" cy="26" rx="10" ry="18" fill="none" stroke="white" stroke-width="2"/>
+        <line x1="8" y1="26" x2="44" y2="26" stroke="white" stroke-width="2"/>
+        <line x1="26" y1="8"  x2="26" y2="44" stroke="white" stroke-width="2"/>
+        <ellipse cx="26" cy="26" rx="18" ry="10" fill="none" stroke="white" stroke-width="1.5"/>
+      </svg>
+      <span class="sbi-logo-text">SBI</span>
+    </div>
+    <div class="header-right">
+      <span class="skip-link">Skip to main content</span>
+      <!-- YONO eSBI badge -->
+      <div style="background: linear-gradient(135deg, #6a1b9a, #4a148c); border-radius: 10px; padding: 6px 12px; color:white; display:flex; flex-direction:column; align-items:center; line-height:1.2; min-width:70px;">
+        <span style="font-size:17px; font-style:italic; font-weight:900; letter-spacing:-0.5px; color:white;">yono</span>
+        <span style="font-size:10px; font-weight:700; color:#dbb0ff; letter-spacing:2px;">eSBI</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#">Services <span class="nav-arrow">▼</span></a>
+    <a href="#">FAQ <span class="nav-arrow">▼</span></a>
+    <a href="#">Corporate Website</a>
+    <a href="#">SBIePay Lite <span style="font-size:10px; color:#aac;">(SIMCOPS)</span> <span class="nav-arrow">▼</span></a>
+    <a href="#">Donations</a>
+    <a href="#">SB Collect</a>
+    <a href="#">Videos</a>
+    <a href="#">Apply for SBI/ Current Account <span class="nav-new">New</span> <span class="nav-arrow">▼</span></a>
+    <a href="#">NPS <span class="nav-arrow">▼</span></a>
+    <a href="#">SBI Unipay</a>
+    <a href="#">SBI Loans <span class="nav-new">New</span> <span class="nav-arrow">▼</span></a>
+    <a href="#" class="nav-hindi">हिंदी</a>
+  </nav>
+
+  <!-- NOTICE BARS -->
+  <div class="notice-bar-1">
+    If slowness is observed during Login Page loading, please refresh the page for better experience.
+  </div>
+  <div class="notice-bar-2">
+    SBI never asks for confidential information such as PIN and OTP from customers.
+    <strong>Any such call can be made only by a fraudster. Please do not share personal info.</strong>
+  </div>
+  <div class="ticker-bar">
+    SBI announces migration of OnlineSBI website to new URL onlinesbi.sbi.bank.in.&nbsp;&nbsp;|&nbsp;&nbsp;Customer Care: 1800-XXX-XXXX &nbsp;&nbsp;|&nbsp;&nbsp; YONO available 24x7 &nbsp;&nbsp;|&nbsp;&nbsp;
+  </div>
+
+  <!-- MAIN CARDS -->
+  <div class="cards-wrapper">
+
+    <!-- Personal Banking Card -->
+    <div class="card">
+      <!-- YONO SBI logo -->
+      <div class="yono-card-logo" style="margin-bottom:0;">
+        <span style="font-size:28px; font-style:italic; font-weight:900; color:#7b1fa2;">yono</span>
+        <svg width="28" height="28" viewBox="0 0 28 28" style="margin:0 2px;">
+          <circle cx="14" cy="14" r="14" fill="#003087"/>
+          <circle cx="14" cy="14" r="9" fill="none" stroke="white" stroke-width="1.5"/>
+          <ellipse cx="14" cy="14" rx="5" ry="9" fill="none" stroke="white" stroke-width="1.5"/>
+          <line x1="5" y1="14" x2="23" y2="14" stroke="white" stroke-width="1.5"/>
+        </svg>
+        <span style="font-size:25px; font-weight:900; color:#003087;">SBI</span>
+      </div>
+      <div class="card-sub">NET-BANKING</div>
+      <div class="card-title personal">
+        <span>PERSONAL </span><span>BANKING</span>
+      </div>
+      <button class="btn-login">
+        LOGIN &nbsp;<span class="btn-arrow">»</span>
+      </button>
+      <div class="card-links">
+        <div class="card-link-item">
+          <div class="card-link-icon icon-user">👤</div>
+          <span>New User Registration / Activation</span>
+        </div>
+        <div class="card-link-item">
+          <div class="card-link-icon icon-help">❓</div>
+          <span>How Do I</span>
+        </div>
+        <div class="card-link-item">
+          <div class="card-link-icon icon-care">👨‍💼</div>
+          <span>Customer Care - Personal</span>
+        </div>
+        <div class="card-link-item">
+          <div class="card-link-icon icon-lock">🔒</div>
+          <span>Lock &amp; Unlock User</span>
+        </div>
+      </div>
+      <div class="card-desc">
+        SBI's internet banking portal provides personal banking services that gives you complete control over all your banking demands online.
+      </div>
+    </div>
+
+    <!-- Corporate Banking Card -->
+    <div class="card">
+      <!-- YONO SBI BUSINESS logo -->
+      <div class="yono-card-logo" style="margin-bottom:0;">
+        <span style="font-size:28px; font-style:italic; font-weight:900; color:#7b1fa2;">yono</span>
+        <svg width="28" height="28" viewBox="0 0 28 28" style="margin:0 2px;">
+          <circle cx="14" cy="14" r="14" fill="#003087"/>
+          <circle cx="14" cy="14" r="9" fill="none" stroke="white" stroke-width="1.5"/>
+          <ellipse cx="14" cy="14" rx="5" ry="9" fill="none" stroke="white" stroke-width="1.5"/>
+          <line x1="5" y1="14" x2="23" y2="14" stroke="white" stroke-width="1.5"/>
+        </svg>
+        <span style="font-size:25px; font-weight:900; color:#003087;">SBI</span>
+      </div>
+      <div class="card-sub" style="color:#1565c0; font-size:10px; letter-spacing:1px;">BUSINESS</div>
+      <div class="card-title corporate" style="margin-top:4px;">CORPORATE BANKING</div>
+      <button class="btn-login">
+        LOGIN &nbsp;<span class="btn-arrow">»</span>
+      </button>
+      <div class="corp-desc">
+        Have you tried our new simplified and intuitive business banking platform?
+        Log in to yonobusiness.sbi.bank.in to avail business banking services.
+      </div>
+      <div class="card-links">
+        <div class="card-link-item">
+          <div class="card-link-icon icon-care">🏢</div>
+          <span>New Corporate Registration</span>
+        </div>
+        <div class="card-link-item">
+          <div class="card-link-icon icon-help">❓</div>
+          <span>How Do I</span>
+        </div>
+        <div class="card-link-item">
+          <div class="card-link-icon icon-care">👨‍💼</div>
+          <span>Customer Care - Corporate</span>
+        </div>
+      </div>
+      <div class="card-desc" style="margin-top:8px;">
+        Corporate Banking application to administer and manage non personal accounts online.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM LINKS GRID -->
+  <div class="bottom-links">
+    <div class="bottom-link">Register Complaint of Unauthorized Transaction<span class="new-badge">New</span></div>
+    <div class="bottom-link">QMS (e-Appointment)</div>
+    <div class="bottom-link">RBI Retail Direct portal</div>
+    <div class="bottom-link">Block ATM Card</div>
+
+    <div class="bottom-link">Banking Forms</div>
+    <div class="bottom-link">Doorstep Banking</div>
+    <div class="bottom-link">SBI General Insurance Document Download</div>
+    <div class="bottom-link">SBI FasTag</div>
+
+    <div class="bottom-link">SBI Salary Account</div>
+    <div class="bottom-link">NRI Services</div>
+    <div class="bottom-link">CYBER CRIME HELPLINE</div>
+    <div class="bottom-link">SBI Securities</div>
+  </div>
+
+</body>
+</html>

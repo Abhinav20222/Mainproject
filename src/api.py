@@ -261,7 +261,7 @@ def visual_check():
                 'error': 'Image comparator not available.'
             }), 503
 
-        result = comparator.compare(screenshot_path)
+        result = comparator.compare(screenshot_path, url=url)
 
         analysis_time = (time.time() - start_time) * 1000
         return jsonify({
@@ -386,7 +386,7 @@ def full_scan():
             if capturer and comparator:
                 try:
                     screenshot_path = capturer.capture(extracted_urls[0])
-                    vis_result = comparator.compare(screenshot_path)
+                    vis_result = comparator.compare(screenshot_path, url=extracted_urls[0])
                     vis_result['heatmap_available'] = vis_result.get('heatmap_path') is not None
                     visual_analysis = vis_result
                     scores['visual'] = vis_result.get('visual_threat_score', 0)
@@ -495,10 +495,10 @@ if __name__ == '__main__':
     print("\n" + "="*50)
     print("PhishGuard AI API - FULL STACK VERSION")
     print("="*50)
-    print("✅ SMS models loaded via cache!")
-    print("🔗 URL model: loading on first request")
-    print("👁️  Visual detection: loading on first request")
-    print("🚀 SMS Predictions: ~100-200ms")
+    print("[OK] SMS models loaded via cache!")
+    print("[..] URL model: loading on first request")
+    print("[..] Visual detection: loading on first request")
+    print("[>>] SMS Predictions: ~100-200ms")
     print("="*50)
     print("Endpoints:")
     print("  GET  /api/health       - Health check")
